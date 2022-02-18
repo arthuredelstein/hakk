@@ -99,6 +99,22 @@ const handleVariableDeclarationExit = (path) => {
     .join('\n');
 };
 
+const handleCallExpressionWithRequireOrImport = (path) => {
+  if (getEnclosingFunction(path)) {
+    return;
+  }
+  const topPath = path.find((path) => path.parentPath.isProgram());
+  if (path.node.callee && path.node.arguments[0]) {
+    const firstArgument = path.node.arguments[0].value;
+    if (path.node.callee.name === '__import') {
+      topPath.node._topLevelImport = firstArgument;
+    }
+    if (path.node.callee.name === 'require') {
+      topPath.node._topLevelRequire = firstArgument;
+    }
+  }
+};
+
 const varVisitor = {
   VariableDeclaration: {
     enter (path) {
@@ -106,6 +122,11 @@ const varVisitor = {
     },
     exit (path) {
       handleVariableDeclarationExit(path);
+    }
+  },
+  CallExpression: {
+    exit (path) {
+      handleCallExpressionWithRequireOrImport(path);
     }
   }
 };
@@ -199,22 +220,6 @@ const handleCallExpressionEnter = (path) => {
   const expressionAST = ast.expression;
   expressionAST.arguments = expressionAST.arguments.concat(path.node.arguments);
   path.replaceWith(expressionAST);
-};
-
-const handleCallExpressionExit = (path) => {
-  if (getEnclosingFunction(path)) {
-    return;
-  }
-  const topPath = path.find((path) => path.parentPath.isProgram());
-  if (path.node.callee) {
-    const firstArgument = path.node.arguments[0].value;
-    if (path.node.callee.name === '__import') {
-      topPath.node._topLevelImport = firstArgument;
-    }
-    if (path.node.callee.name === 'require') {
-      topPath.node._topLevelRequire = firstArgument;
-    }
-  }
 };
 
 const handleMemberExpression = (path) => {
@@ -395,9 +400,6 @@ const superVisitor = {
   CallExpression: {
     enter (path) {
       handleCallExpressionEnter(path);
-    },
-    exit (path) {
-      handleCallExpressionExit(path);
     }
   },
   MemberExpression (path) {
