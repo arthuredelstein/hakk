@@ -1,0 +1,15 @@
+{
+  "name": "hakk",
+  "version": "0.0.1",
+  "description": "repl for hakking on node scripts",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Arthur Edelstein",
+  "license": "MIT",
+  "dependencies": {
+    "@babel/generator": "^7.20.4",
+    "@babel/parser": "^7.20.3"
+  }
+}
