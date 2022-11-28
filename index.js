@@ -31,7 +31,7 @@ const makeTopLevelDeclarationsMutable = (tree) => {
     }
     // TODO:
     // Make class declarations mutable by transforming to prototype
-    // construction.
+    // construction. Maybe use @babel/plugin-transform-classes
     //
     // class A {
     //   constructor() {
