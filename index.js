@@ -29,6 +29,23 @@ const makeTopLevelDeclarationsMutable = (tree) => {
         node.kind = "var";
       }
     }
+    // TODO:
+    // Make class declarations mutable by transforming to prototype
+    // construction.
+    //
+    // class A {
+    //   constructor() {
+    //     this.q = 1;
+    //   }
+    //   inc() {
+    //     ++this.q;
+    //   }
+    // }
+    //  ... gets transformed to ...
+    // var A = function () { this.q = 1; }
+    // A.prototype.inc = function () { ++this.q; }
+    //
+    // The modified prototype gets applied to existing instances!
   }
   return tree;
 };
