@@ -16,12 +16,14 @@ const makeTopLevelDeclarationsMutable = (tree) => {
   return tree;
 };
 
-const replServer = new repl.REPLServer(options);
-const eval1 = replServer.eval;
-const eval2 = async (code, ...args) => {
-  const tree = parse(code);
-  const tree2 = makeTopLevelDeclarationsMutable(tree);
-  const generatorResult = generate(tree2, {}, code);
-  await eval1(generatorResult.code, ...args);
+const createEvalWithMutableTopLevel = (originalEval) => {
+  return async (code, ...args) => {
+    const tree = parse(code);
+    const tree2 = makeTopLevelDeclarationsMutable(tree);
+    const generatorResult = generate(tree2, {}, code);
+    await originalEval(generatorResult.code, ...args);
+  };
 };
-replServer.eval = eval2;
+
+const replServer = new repl.REPLServer(options);
+replServer.eval = createEvalWithMutableTopLevel(replServer.eval);
