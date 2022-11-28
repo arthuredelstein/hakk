@@ -18,10 +18,14 @@ const makeTopLevelDeclarationsMutable = (tree) => {
 
 const createEvalWithMutableTopLevel = (originalEval) => {
   return async (code, ...args) => {
-    const tree = parse(code);
-    const tree2 = makeTopLevelDeclarationsMutable(tree);
-    const generatorResult = generate(tree2, {}, code);
-    await originalEval(generatorResult.code, ...args);
+    try {
+      const tree = parse(code);
+      const tree2 = makeTopLevelDeclarationsMutable(tree);
+      const generatorResult = generate(tree2, {}, code);
+      await originalEval(generatorResult.code, ...args);
+    } catch (e) {
+      await originalEval(code, ...args);
+    }
   };
 };
 
