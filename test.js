@@ -17,6 +17,6 @@ const set = (a) => {
 
 const blah = () => {
   const result = fs.readFileSync("test.js", "utf8");
-  3return result;
+  return result;
 };
 
