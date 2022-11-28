@@ -6,15 +6,20 @@ const generate = require("@babel/generator").default;
 const repl = require('node:repl');
 const options = { useColors: true };
 
-const watchForFileChanges = (path, interval, callback) =>
+const watchForFileChanges = (path, interval, callback) => {
+  const readAndCallback = async () => {
+    const contents = await fsPromises.readFile(path, { encoding: 'utf8' });
+    callback(contents);
+  };
+  readAndCallback();
   fs.watchFile(
     path, { interval, persistent: false },
     async (current, previous) => {
       if (current.mtime !== previous.mtime) {
-        const contents = await fsPromises.readFile(path, { encoding: 'utf8' });
-        callback(contents);
+        await readAndCallback();
       }
     });
+};
 
 const makeTopLevelDeclarationsMutable = (tree) => {
   const topLevelNodes = tree.program.body;
