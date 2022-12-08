@@ -4,7 +4,6 @@ const { parse } = require("@babel/parser");
 const generate = require("@babel/generator").default;
 const { transformSync } = require("@babel/core");
 const repl = require('node:repl');
-const options = { useColors: true };
 const minimist = require('minimist');
 
 const watchForFileChanges = (path, interval, callback) => {
@@ -22,7 +21,7 @@ const watchForFileChanges = (path, interval, callback) => {
     });
 };
 
-const makeTopLevelDeclarationsMutable = (tree) => {
+const treeWithTopLevelDeclarationsMutable = (tree) => {
   const topLevelNodes = tree.program.body;
   for (let node of topLevelNodes) {
     if (node.type === "VariableDeclaration") {
@@ -53,14 +52,18 @@ const makeTopLevelDeclarationsMutable = (tree) => {
   return tree;
 };
 
-const useEvalWithMutableTopLevel = (replServer) => {
+const codeWithTopLevelDeclarationsMutable = (code) => {
+  const tree = parse(code);
+  const tree2 = makeTopLevelDeclarationsMutable(tree);
+  const generatorResult = generate(tree2, {}, code);
+  return generatorResult.code;
+};
+
+const useEvalWithCodeModifications = (replServer, modifierFunction) => {
   const originalEval = replServer.eval;
   const newEval = (code, ...args) => {
     try {
-      const tree = parse(code);
-      const tree2 = makeTopLevelDeclarationsMutable(tree);
-      const generatorResult = generate(tree2, {}, code);
-      originalEval(generatorResult.code,
+      originalEval(modifierFunction(code),
                    ...args);
     } catch (e) {
       originalEval(code, ...args);
@@ -91,10 +94,13 @@ const evaluateChangedCodeFragments = async (replServer, code) => {
 
 const main = () => {
   const argv = minimist(process.argv.slice(2));
-  console.log(argv);
+  //console.log(argv);
+  const filename = argv._[0];
+  const options = { useColors: true, prompt: filename + "> " };
   const replServer = new repl.REPLServer(options);
-  const newEval = useEvalWithMutableTopLevel(replServer);
-  watchForFileChanges("test.js", 100,
+  const newEval = useEvalWithCodeModifications(
+    replServer, codeWithTopLevelDeclarationsMutable);
+  watchForFileChanges(filename, 100,
                       (code) => evaluateChangedCodeFragments(replServer, code));
 };
 
