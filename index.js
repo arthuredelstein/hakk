@@ -54,7 +54,7 @@ const treeWithTopLevelDeclarationsMutable = (tree) => {
 
 const codeWithTopLevelDeclarationsMutable = (code) => {
   const tree = parse(code);
-  const tree2 = makeTopLevelDeclarationsMutable(tree);
+  const tree2 = treeWithTopLevelDeclarationsMutable(tree);
   const generatorResult = generate(tree2, {}, code);
   return generatorResult.code;
 };
@@ -63,10 +63,9 @@ const useEvalWithCodeModifications = (replServer, modifierFunction) => {
   const originalEval = replServer.eval;
   const newEval = (code, ...args) => {
     try {
-      originalEval(modifierFunction(code),
-                   ...args);
+      originalEval(modifierFunction(code), ...args);
     } catch (e) {
-      originalEval(code, ...args);
+      console.log(e);
     }
   };
   replServer.eval = newEval;
@@ -75,28 +74,32 @@ const useEvalWithCodeModifications = (replServer, modifierFunction) => {
 let previousFragments = new Set();
 
 const evaluateChangedCodeFragments = async (replServer, code) => {
-  const tree = parse(code);
-  const newFragments = new Set();
-  for (let node of tree.program.body) {
-    const fragment = generate(node, {}, "").code;
-    newFragments.add(fragment);
-    if (previousFragments.has(fragment)) {
-      previousFragments.delete(fragment);
-    } else {
-      replServer.eval(fragment, replServer.context, undefined, () => {});
+  try {
+    const tree = parse(code);
+    const newFragments = new Set();
+    for (let node of tree.program.body) {
+      const fragment = generate(node, {}, "").code;
+      newFragments.add(fragment);
+      if (previousFragments.has(fragment)) {
+        previousFragments.delete(fragment);
+      } else {
+        replServer.eval(fragment, replServer.context, undefined, () => {});
+      }
     }
+    for (let fragment of previousFragments) {
+      // TODO: remove old fragment
+    }
+    previousFragments = newFragments;
+  } catch (e) {
+    console.log(e);
   }
-  for (let fragment of previousFragments) {
-    // TODO: remove old fragment
-  }
-  previousFragments = newFragments;
 };
 
 const main = () => {
   const argv = minimist(process.argv.slice(2));
   //console.log(argv);
   const filename = argv._[0];
-  const options = { useColors: true, prompt: filename + "> " };
+  const options = { useColors: true, prompt: `${filename}> ` };
   const replServer = new repl.REPLServer(options);
   const newEval = useEvalWithCodeModifications(
     replServer, codeWithTopLevelDeclarationsMutable);
