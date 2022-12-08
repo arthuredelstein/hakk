@@ -6,8 +6,7 @@ let y = 10;
 
 const bump = () => {
   // console.log("hello there, bump!");
-  y = y * 2;
-  return ++x;
+  return x += 1;
 };
 
 const set = (a) => {
@@ -20,12 +19,26 @@ const blah = () => {
   return result;
 };
 
-class TestClass {
-  constructor () {
-    console.log("here's the constructor");
-  }
+const foo = (a) => {
+  x = a;
+  y = a;
+};
 
-  testMethod () {
-    console.log('hi there from testMethod');
-  }
+function toTitleCase(str) {
+  return str.replace(
+    /\w\S*/g,
+    function(txt) {
+      return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+    }
+  );
 }
+
+const reverse = (s) => {
+  return s.split("").reverse().join("");
+}
+
+const join = (a, b) => {
+  return toTitleCase(a) + " " + toTitleCase(b);
+};
+
+

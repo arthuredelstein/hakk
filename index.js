@@ -2,9 +2,10 @@ const fs = require("fs");
 const fsPromises = require('node:fs/promises');
 const { parse } = require("@babel/parser");
 const generate = require("@babel/generator").default;
-
+const { transformSync } = require("@babel/core");
 const repl = require('node:repl');
 const options = { useColors: true };
+const minimist = require('minimist');
 
 const watchForFileChanges = (path, interval, callback) => {
   const readAndCallback = async () => {
@@ -31,7 +32,7 @@ const makeTopLevelDeclarationsMutable = (tree) => {
     }
     // TODO:
     // Make class declarations mutable by transforming to prototype
-    // construction. Maybe use @babel/plugin-transform-classes
+    // construction.
     //
     // class A {
     //   constructor() {
@@ -46,48 +47,57 @@ const makeTopLevelDeclarationsMutable = (tree) => {
     // A.prototype.inc = function () { ++this.q; }
     //
     // The modified prototype gets applied to existing instances!
+    // I need to detect when the constructor gets redefined so we can re-evaluate
+    // all method definitions.
   }
   return tree;
 };
 
-const createEvalWithMutableTopLevel = (originalEval) => {
-  return async (code, ...args) => {
+const useEvalWithMutableTopLevel = (replServer) => {
+  const originalEval = replServer.eval;
+  const newEval = (code, ...args) => {
     try {
       const tree = parse(code);
       const tree2 = makeTopLevelDeclarationsMutable(tree);
       const generatorResult = generate(tree2, {}, code);
-//      console.log(generatorResult.code);
-      await originalEval(generatorResult.code, ...args);
+      originalEval(generatorResult.code,
+                   ...args);
     } catch (e) {
-//      console.log(e);
-      await originalEval(code, ...args);
+      originalEval(code, ...args);
     }
   };
+  replServer.eval = newEval;
 };
 
 let previousFragments = new Set();
 
-const evaluateChangedCodeFragments = (c) => {
-  //  console.log(c);
-  const tree = parse(c);
-  const currentFragments = new Set();
+const evaluateChangedCodeFragments = async (replServer, code) => {
+  const tree = parse(code);
+  const newFragments = new Set();
   for (let node of tree.program.body) {
     const fragment = generate(node, {}, "").code;
-    currentFragments.add(fragment);
+    newFragments.add(fragment);
     if (previousFragments.has(fragment)) {
       previousFragments.delete(fragment);
     } else {
-//      console.log(fragment);
-      newEval(fragment, replServer.context, undefined, () => {});
+      replServer.eval(fragment, replServer.context, undefined, () => {});
     }
   }
   for (let fragment of previousFragments) {
     // TODO: remove old fragment
   }
-  previousFragments = currentFragments;
+  previousFragments = newFragments;
 };
 
-const replServer = new repl.REPLServer(options);
-const newEval = createEvalWithMutableTopLevel(replServer.eval);
-replServer.eval = newEval;
-watchForFileChanges("test.js", 100, evaluateChangedCodeFragments);
+const main = () => {
+  const argv = minimist(process.argv.slice(2));
+  console.log(argv);
+  const replServer = new repl.REPLServer(options);
+  const newEval = useEvalWithMutableTopLevel(replServer);
+  watchForFileChanges("test.js", 100,
+                      (code) => evaluateChangedCodeFragments(replServer, code));
+};
+
+if (require.main === module) {
+  main();
+}

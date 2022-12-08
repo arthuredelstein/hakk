@@ -9,7 +9,10 @@
   "author": "Arthur Edelstein",
   "license": "MIT",
   "dependencies": {
+    "@babel/core": "^7.20.5",
     "@babel/generator": "^7.20.4",
-    "@babel/parser": "^7.20.3"
+    "@babel/parser": "^7.20.3",
+    "@babel/plugin-transform-classes": "^7.20.2",
+    "minimist": "^1.2.7"
   }
 }
