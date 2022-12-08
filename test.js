@@ -41,4 +41,3 @@ const join = (a, b) => {
   return toTitleCase(a) + " " + toTitleCase(b);
 };
 
-
