@@ -12,7 +12,8 @@
     "@babel/core": "^7.20.5",
     "@babel/generator": "^7.20.4",
     "@babel/parser": "^7.20.3",
-    "@babel/plugin-transform-classes": "^7.20.2",
+    "@babel/traverse": "^7.20.5",
+    "babel-plugin-import": "^1.13.5",
     "minimist": "^1.2.7"
   }
 }
