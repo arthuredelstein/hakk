@@ -1,12 +1,13 @@
 const fs = require("fs");
 const fsPromises = require('node:fs/promises');
-const parser = require("@babel/parser");
 const generate = require("@babel/generator").default;
-const { transformSync } = require("@babel/core");
-const repl = require('node:repl');
 const minimist = require('minimist');
-const traverse = require("@babel/traverse").default;
+const parser = require("@babel/parser");
+const path = require('node:path');
+const repl = require('node:repl');
 const template = require("@babel/template").default;
+const traverse = require("@babel/traverse").default;
+const { transformSync } = require("@babel/core");
 
 // ## Utility functions
 
@@ -174,8 +175,13 @@ const main = () => {
   const filename = argv._[0];
   const options = { useColors: true, prompt: `${filename}> ` };
   const replServer = new repl.REPLServer(options);
-  const newEval = useEvalWithCodeModifications(
-    replServer, prepare);
+  useEvalWithCodeModifications(replServer, prepare);
+  const filenameFullPath = path.resolve(filename);
+  const setGlobalCommand = `
+    __filename = '${filenameFullPath}';
+    __dirname = '${path.dirname(filenameFullPath)}';
+  `;
+  evaluateChangedCodeFragments(replServer, setGlobalCommand);
   watchForFileChanges(filename, 100,
     (code) => evaluateChangedCodeFragments(replServer, prepare(code)));
 };
