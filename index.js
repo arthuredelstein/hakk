@@ -66,9 +66,9 @@ const codeWithTopLevelDeclarationsMutable = (code) => {
 
 const useEvalWithCodeModifications = (replServer, modifierFunction) => {
   const originalEval = replServer.eval;
-  const newEval = (code, ...args) => {
+  const newEval = (code, context, filename, callback) => {
     try {
-      originalEval(modifierFunction(code), ...args);
+      originalEval(modifierFunction(code), context, filename, callback);
     } catch (e) {
       //console.log(e);
     }
@@ -88,7 +88,8 @@ const evaluateChangedCodeFragments = async (replServer, code) => {
       if (previousFragments.has(fragment)) {
         previousFragments.delete(fragment);
       } else {
-        replServer.eval(fragment, replServer.context, undefined, () => {});
+        await replServer.eval(fragment, replServer.context, undefined, () => {});
+        console.log(fragment);
       }
     }
     for (let fragment of previousFragments) {
@@ -98,16 +99,6 @@ const evaluateChangedCodeFragments = async (replServer, code) => {
   } catch (e) {
     console.log(e);
   }
-};
-
-const prepare = (code) => {
-  const result = transformSync(code, {
-    plugins:[["@babel/plugin-transform-modules-commonjs",
-              {importInterop: "none",
-               allowTopLevelThis: true}]]
-  }).code;
-//  console.log(result);
-  return result;
 };
 
 const inputCode = "import { minimistFun } from 'mininist';";
@@ -149,6 +140,7 @@ const transformImport = (ast) => {
       if (namespaceId === undefined && specifiers.length === 0) {
         line = sourceString;
       }
+      console.log(line);
       const newAst = template.ast(line);
       if (namespaceId && specifiers.length > 0) {
         path.replaceWithMultiple(newAst);
@@ -158,6 +150,12 @@ const transformImport = (ast) => {
     }
   });
   return ast;
+};
+
+const prepare = (code) => {
+  const result = generate(transformImport(parse(code))).code;
+//  console.log(result);
+  return result;
 };
 
 const main = () => {
