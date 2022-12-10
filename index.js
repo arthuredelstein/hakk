@@ -118,6 +118,8 @@ const evaluateChangedCodeFragments = async (replServer, code) => {
     const tree = parse(code);
     const newFragments = new Set();
     for (let node of tree.program.body) {
+      // Remove trailing comments because they are redundant.
+      node.trailingComments = undefined;
       const fragment = generate(node, {}, "").code;
       newFragments.add(fragment);
       if (previousFragments.has(fragment)) {
@@ -133,7 +135,6 @@ const evaluateChangedCodeFragments = async (replServer, code) => {
                             }
                           });
         });
-        console.log("--fragment--:", fragment);
       }
     }
     for (let fragment of previousFragments) {
@@ -160,6 +161,7 @@ const useEvalWithCodeModifications = (replServer, modifierFunction) => {
     try {
       originalEval(modifierFunction(code), context, filename, callback);
     } catch (e) {
+      console.log(`attempted to evaluate: ${code}`);
       //console.log(e);
     }
   };
