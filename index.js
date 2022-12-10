@@ -8,6 +8,8 @@ const minimist = require('minimist');
 const traverse = require("@babel/traverse").default;
 const template = require("@babel/template").default;
 
+// ## Utility functions
+
 // Ensure we allow 'import' keyword.
 const parse = (code) => parser.parse(code, { 'sourceType': 'module'});
 
@@ -26,6 +28,28 @@ const watchForFileChanges = (path, interval, callback) => {
     });
 };
 
+// ## AST transformations
+
+// TODO:
+// Make class declarations mutable by transforming to prototype
+// construction.
+//
+// class A {
+//   constructor() {
+//     this.q = 1;
+//   }
+//   inc() {
+//     ++this.q;
+//   }
+// }
+//  ... gets transformed to ...
+// var A = function () { this.q = 1; }
+// A.prototype.inc = function () { ++this.q; }
+//
+// The modified prototype then gets applied to existing instances!
+// I need to detect when the constructor gets redefined so we can re-evaluate
+// all method definitions.
+
 const treeWithTopLevelDeclarationsMutable = (tree) => {
   const topLevelNodes = tree.program.body;
   for (let node of topLevelNodes) {
@@ -34,75 +58,9 @@ const treeWithTopLevelDeclarationsMutable = (tree) => {
         node.kind = "var";
       }
     }
-    // TODO:
-    // Make class declarations mutable by transforming to prototype
-    // construction.
-    //
-    // class A {
-    //   constructor() {
-    //     this.q = 1;
-    //   }
-    //   inc() {
-    //     ++this.q;
-    //   }
-    // }
-    //  ... gets transformed to ...
-    // var A = function () { this.q = 1; }
-    // A.prototype.inc = function () { ++this.q; }
-    //
-    // The modified prototype gets applied to existing instances!
-    // I need to detect when the constructor gets redefined so we can re-evaluate
-    // all method definitions.
   }
   return tree;
 };
-
-const codeWithTopLevelDeclarationsMutable = (code) => {
-  const tree = parse(code);
-  const tree2 = treeWithTopLevelDeclarationsMutable(tree);
-  const generatorResult = generate(tree2, {}, code);
-  return generatorResult.code;
-};
-
-const useEvalWithCodeModifications = (replServer, modifierFunction) => {
-  const originalEval = replServer.eval;
-  const newEval = (code, context, filename, callback) => {
-    try {
-      originalEval(modifierFunction(code), context, filename, callback);
-    } catch (e) {
-      //console.log(e);
-    }
-  };
-  replServer.eval = newEval;
-};
-
-let previousFragments = new Set();
-
-const evaluateChangedCodeFragments = async (replServer, code) => {
-  try {
-    const tree = parse(code);
-    const newFragments = new Set();
-    for (let node of tree.program.body) {
-      const fragment = generate(node, {}, "").code;
-      newFragments.add(fragment);
-      if (previousFragments.has(fragment)) {
-        previousFragments.delete(fragment);
-      } else {
-        await replServer.eval(fragment, replServer.context, undefined, () => {});
-        console.log(fragment);
-      }
-    }
-    for (let fragment of previousFragments) {
-      // TODO: remove old fragment
-    }
-    previousFragments = newFragments;
-  } catch (e) {
-    console.log(e);
-  }
-};
-
-const inputCode = "import { minimistFun } from 'mininist';";
-const outputCode = "const { minimistFun } = require('minimist');";
 
 const transformImport = (ast) => {
   traverse(ast, {
@@ -140,7 +98,6 @@ const transformImport = (ast) => {
       if (namespaceId === undefined && specifiers.length === 0) {
         line = sourceString;
       }
-      console.log(line);
       const newAst = template.ast(line);
       if (namespaceId && specifiers.length > 0) {
         path.replaceWithMultiple(newAst);
@@ -152,10 +109,61 @@ const transformImport = (ast) => {
   return ast;
 };
 
+// ## REPL setup
+
+let previousFragments = new Set();
+
+const evaluateChangedCodeFragments = async (replServer, code) => {
+  try {
+    const tree = parse(code);
+    const newFragments = new Set();
+    for (let node of tree.program.body) {
+      const fragment = generate(node, {}, "").code;
+      newFragments.add(fragment);
+      if (previousFragments.has(fragment)) {
+        previousFragments.delete(fragment);
+      } else {
+        await new Promise((resolve, reject) => {
+          replServer.eval(fragment, replServer.context, undefined,
+                          (err, result) => {
+                            if (err) {
+                              reject(err);
+                            } else {
+                              resolve(result);
+                            }
+                          });
+        });
+        console.log("--fragment--:", fragment);
+      }
+    }
+    for (let fragment of previousFragments) {
+      // TODO: remove old fragment
+    }
+    previousFragments = newFragments;
+  } catch (e) {
+    console.log(e);
+  }
+};
+
 const prepare = (code) => {
-  const result = generate(transformImport(parse(code))).code;
+  const result = generate(
+    treeWithTopLevelDeclarationsMutable(
+      transformImport(
+        parse(code)))).code;
 //  console.log(result);
   return result;
+};
+
+const useEvalWithCodeModifications = (replServer, modifierFunction) => {
+  const originalEval = replServer.eval;
+  const newEval = (code, context, filename, callback) => {
+    try {
+      originalEval(modifierFunction(code), context, filename, callback);
+    } catch (e) {
+      //console.log(e);
+    }
+  };
+  replServer.eval = newEval;
 };
 
 const main = () => {
@@ -165,7 +173,7 @@ const main = () => {
   const options = { useColors: true, prompt: `${filename}> ` };
   const replServer = new repl.REPLServer(options);
   const newEval = useEvalWithCodeModifications(
-    replServer, codeWithTopLevelDeclarationsMutable);
+    replServer, prepare);
   watchForFileChanges(filename, 100,
     (code) => evaluateChangedCodeFragments(replServer, prepare(code)));
 };
