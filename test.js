@@ -5,7 +5,7 @@ let x = 0;
 let y = 10;
 
 const bump = () => {
-  // console.log("hello there, bump!");
+  // console.log"hello there, bump!");
   return x += 1;
 };
 
@@ -20,8 +20,16 @@ const blah = () => {
 };
 
 const foo = (a) => {
-  x = a;
-  y = a;
+  x = a + 1;
+  y = a * 2;
+};
+
+const thpbbb = (name, count) => {
+  let result = [];
+  for (let i = 0; i < count; ++i) {
+    result.push(name);
+  }
+  return result.join(" X ");
 };
 
 function toTitleCase(str) {
@@ -33,6 +41,24 @@ function toTitleCase(str) {
   );
 }
 
+const deebee = (n) => {
+  let answer = "";
+  for (i = 0; i < n; ++i) {
+    answer += "wfoub2oeufheoufh";
+  }
+  return answer;
+};
+
+const invertMap = (m) => {
+  let result = {};
+  for (let [k,v] of Object.entries(m)) {
+    result[v] = k;
+  }
+  return result;
+}
+
+const addSome = (a) => 11 + a;
+
 const reverse = (s) => {
   return s.split("").reverse().join("");
 }
@@ -40,4 +66,3 @@ const reverse = (s) => {
 const join = (a, b) => {
   return toTitleCase(a) + " " + toTitleCase(b);
 };
-
