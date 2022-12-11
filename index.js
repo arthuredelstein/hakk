@@ -36,15 +36,20 @@ const watchForFileChanges = (path, interval, callback) => {
 //
 // class A {
 //   constructor() {
-//     this.q = 1;
+//     this.q_ = 1;
 //   }
 //   inc() {
-//     ++this.q;
+//     ++this.q_;
+//   }
+//   get q() {
+//     return this.q_;
 //   }
 // }
 //  ... gets transformed to ...
-// var A = function () { this.q = 1; }
-// A.prototype.inc = function () { ++this.q; }
+// var A = function () { this.q_ = 1; }
+// A.prototype.inc = function () { ++this.q_; }
+// Object.defineProperty(A.prototype, "q",
+//   { get: function () { return this.q_; } });
 //
 // The modified prototype then gets applied to existing instances!
 // I need to detect when the constructor gets redefined so we can re-evaluate
