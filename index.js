@@ -1,7 +1,6 @@
 const fs = require("fs");
 const fsPromises = require('node:fs/promises');
 const generate = require("@babel/generator").default;
-const minimist = require('minimist');
 const parser = require("@babel/parser");
 const path = require('node:path');
 const repl = require('node:repl');
@@ -169,10 +168,7 @@ const useEvalWithCodeModifications = (replServer, modifierFunction) => {
   replServer.eval = newEval;
 };
 
-const main = () => {
-  const argv = minimist(process.argv.slice(2));
-  //console.log(argv);
-  const filename = argv._[0];
+const run = (filename) => {
   const options = { useColors: true, prompt: `${filename}> ` };
   const replServer = new repl.REPLServer(options);
   useEvalWithCodeModifications(replServer, prepare);
@@ -186,6 +182,4 @@ const main = () => {
     (code) => evaluateChangedCodeFragments(replServer, prepare(code)));
 };
 
-if (require.main === module) {
-  main();
-}
+exports.run = run;

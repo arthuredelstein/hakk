@@ -15,5 +15,8 @@
     "@babel/traverse": "^7.20.5",
     "babel-plugin-import": "^1.13.5",
     "minimist": "^1.2.7"
+  },
+  "bin": {
+    "hakk": "./bin.js"
   }
 }
