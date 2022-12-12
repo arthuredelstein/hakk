@@ -128,8 +128,8 @@ const transformClass = (ast) => {
       }
       let outputNodes = [];
       for (const classBodyNode of classBodyNodes) {
+        let templateAST = undefined;
         if (classBodyNode.type === "ClassMethod") {
-          let templateAST;
           if (classBodyNode.kind === "constructor") {
             templateAST = template.ast(
               `var ${className} = function () {}`);
@@ -153,6 +153,15 @@ const transformClass = (ast) => {
           }
           fun.body = classBodyNode.body;
           fun.params = classBodyNode.params;
+        } else if (classBodyNode.type === "ClassProperty") {
+          templateAST = template.ast(
+            `${className}.${classBodyNode.static ? "" : "prototype."}${classBodyNode.key.name} = undefined;`
+          );
+          if (classBodyNode.value !== null) {
+            templateAST.expression.right = classBodyNode.value;
+          }
+        }
+        if (templateAST !== undefined) {
           outputNodes.push(templateAST);
         }
       }
