@@ -30,31 +30,6 @@ const watchForFileChanges = (path, interval, callback) => {
 
 // ## AST transformations
 
-// TODO:
-// Make class declarations mutable by transforming to prototype
-// construction.
-//
-// class A {
-//   constructor() {
-//     this.q_ = 1;
-//   }
-//   inc() {
-//     ++this.q_;
-//   }
-//   get q() {
-//     return this.q_;
-//   }
-// }
-//  ... gets transformed to ...
-// var A = function () { this.q_ = 1; }
-// A.prototype.inc = function () { ++this.q_; }
-// Object.defineProperty(A.prototype, "q",
-//   { get: function () { return this.q_; } });
-//
-// The modified prototype then gets applied to existing instances!
-// I need to detect when the constructor gets redefined so we can re-evaluate
-// all method definitions.
-
 const treeWithTopLevelDeclarationsMutable = (tree) => {
   const topLevelNodes = tree.program.body;
   for (let node of topLevelNodes) {
@@ -114,6 +89,78 @@ const transformImport = (ast) => {
   return ast;
 };
 
+// Make class declarations mutable by transforming to prototype
+// construction.
+//
+// class A {
+//   constructor() {
+//     this.q_ = 1;
+//   }
+//   inc() {
+//     ++this.q_;
+//   }
+//   get q() {
+//     return this.q_;
+//   }
+//   set q(value) {
+//     this.q_ = value;
+//   }
+// }
+//  ... gets transformed to ...
+// var A = function () { this.q_ = 1; }
+// A.prototype.inc = function () { ++this.q_; }
+// Object.defineProperty(A.prototype, "q",
+//   { get: function () { return this.q_; },
+//     configurable: true });
+// Object.defineProperty(A.prototype, "q",
+//   { set: function (value) { this.q_ = value; } });
+const transformClass = (ast) => {
+  traverse(ast, {
+    ClassDeclaration(path) {
+      let className, classBodyNodes;
+      const classNode = path.node;
+      if (classNode.id.type === "Identifier") {
+        className = classNode.id.name;
+      }
+      if (classNode.body.type === "ClassBody") {
+        classBodyNodes = classNode.body.body;
+      }
+      let outputNodes = [];
+      for (const classBodyNode of classBodyNodes) {
+        if (classBodyNode.type === "ClassMethod") {
+          let templateAST;
+          if (classBodyNode.kind === "constructor") {
+            templateAST = template.ast(
+              `var ${className} = function () {}`);
+            fun = templateAST.declarations[0].init;
+          } else if (classBodyNode.kind === "method") {
+            templateAST = template.ast(
+              `${className}.prototype.${classBodyNode.key.name} = function () {}`
+            );
+            fun = templateAST.expression.right;
+          } else if (classBodyNode.kind === "get" ||
+                     classBodyNode.kind === "set") {
+            templateAST = template.ast(
+              `Object.defineProperty(${className}.prototype, "${classBodyNode.key.name}", {
+                 ${classBodyNode.kind}: function () { },
+                 configurable: true
+               });`
+            );
+            fun = templateAST.expression.arguments[2].properties[0].value;
+          } else {
+            throw new Error(`Unexpected kind ${classBodyNode.kind}`);
+          }
+          fun.body = classBodyNode.body;
+          fun.params = classBodyNode.params;
+          outputNodes.push(templateAST);
+        }
+      }
+      path.parent.body = outputNodes;
+    }
+  });
+  return ast;
+};
+
 // ## REPL setup
 
 let previousFragments = new Set();
@@ -154,9 +201,9 @@ const evaluateChangedCodeFragments = async (replServer, code) => {
 const prepare = (code) => {
   const result = generate(
     treeWithTopLevelDeclarationsMutable(
-      transformImport(
-        parse(code)))).code;
-//  console.log(result);
+      transformClass(
+        transformImport(
+          parse(code))))).code;
   return result;
 };
 
@@ -178,13 +225,23 @@ const run = (filename) => {
   const replServer = new repl.REPLServer(options);
   useEvalWithCodeModifications(replServer, prepare);
   const filenameFullPath = path.resolve(filename);
-  const setGlobalCommand = `
+  const setGlobalsCommand = `
     __filename = '${filenameFullPath}';
     __dirname = '${path.dirname(filenameFullPath)}';
+    let exports = {};
   `;
-  evaluateChangedCodeFragments(replServer, setGlobalCommand);
-  watchForFileChanges(filename, 100,
-    (code) => evaluateChangedCodeFragments(replServer, prepare(code)));
+  evaluateChangedCodeFragments(replServer, setGlobalsCommand);
+  watchForFileChanges(
+    filename, 100,
+    (code) => {
+      try {
+        replServer._refreshLine();
+        replServer
+        evaluateChangedCodeFragments(replServer, prepare(code))
+      } catch (e) {
+        console.log(e);
+      };
+    });
 };
 
 exports.run = run;
