@@ -24,6 +24,37 @@ const foo = (a) => {
   y = a * 2;
 };
 
+class MyClass {
+  constructor() {
+    this.q_ = 0;
+  }
+  inc() {
+    this.q_++;
+  }
+  dec() {
+    this.q_--;
+  }
+  dec2() {
+    this.q_+=-2;
+  }
+  dec3() {
+    this.q_+=-3;
+  }
+  inc2() {
+    this.q_+=2;
+  }
+  double() {
+    this.q_ *= 2;
+  }
+  get q() {
+    return this.q_;
+  }
+  set q(value) {
+    this.q_ = value;
+    console.log("set to " + value);
+  }
+}
+
 const thpbbb = (name, count) => {
   let result = [];
   for (let i = 0; i < count; ++i) {
@@ -57,7 +88,7 @@ const invertMap = (m) => {
   return result;
 }
 
-const addSome = (a) => 11 + a;
+const addSome = (a) => 19 + a;
 
 const reverse = (s) => {
   return s.split("").reverse().join("");
