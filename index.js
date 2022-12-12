@@ -113,7 +113,8 @@ const transformImport = (ast) => {
 //   { get: function () { return this.q_; },
 //     configurable: true });
 // Object.defineProperty(A.prototype, "q",
-//   { set: function (value) { this.q_ = value; } });
+//   { set: function (value) { this.q_ = value; }
+//     configurable: true });
 const transformClass = (ast) => {
   traverse(ast, {
     ClassDeclaration(path) {
@@ -135,7 +136,7 @@ const transformClass = (ast) => {
             fun = templateAST.declarations[0].init;
           } else if (classBodyNode.kind === "method") {
             templateAST = template.ast(
-              `${className}.prototype.${classBodyNode.key.name} = ${classBodyNode.async ? "async " : ""}function${classBodyNode.generator ? "*" : ""} () {}`
+              `${className}.${classBodyNode.static ? "" : "prototype."}${classBodyNode.key.name} = ${classBodyNode.async ? "async " : ""}function${classBodyNode.generator ? "*" : ""} () {}`
             );
             fun = templateAST.expression.right;
           } else if (classBodyNode.kind === "get" ||
