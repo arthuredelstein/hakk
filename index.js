@@ -149,7 +149,7 @@ const transformClass = (ast) => {
             );
             fun = templateAST.expression.arguments[2].properties[0].value;
           } else {
-            throw new Error(`Unexpected kind ${classBodyNode.kind}`);
+            throw new Error(`Unexpected ClassMethod kind ${classBodyNode.kind}`);
           }
           fun.body = classBodyNode.body;
           fun.params = classBodyNode.params;
@@ -160,6 +160,8 @@ const transformClass = (ast) => {
           if (classBodyNode.value !== null) {
             templateAST.expression.right = classBodyNode.value;
           }
+        } else {
+          throw new Error(`Unexpected ClassBody node type ${classBodyNode.type}`);
         }
         if (templateAST !== undefined) {
           outputNodes.push(templateAST);
