@@ -135,7 +135,7 @@ const transformClass = (ast) => {
             fun = templateAST.declarations[0].init;
           } else if (classBodyNode.kind === "method") {
             templateAST = template.ast(
-              `${className}.prototype.${classBodyNode.key.name} = function () {}`
+              `${className}.prototype.${classBodyNode.key.name} = ${classBodyNode.async ? "async " : ""}function${classBodyNode.generator ? "*" : ""} () {}`
             );
             fun = templateAST.expression.right;
           } else if (classBodyNode.kind === "get" ||
