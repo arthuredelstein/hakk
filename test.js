@@ -71,9 +71,7 @@ class MyClass {
 };
 
 class TestClass {
-  constructor() {
-    this.x_ = 0;
-  }
+  x_ = 0;
   inc() {
     this.x_++;
   }

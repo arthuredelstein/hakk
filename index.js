@@ -127,10 +127,12 @@ const transformClass = (ast) => {
         classBodyNodes = classNode.body.body;
       }
       let outputNodes = [];
+      let constructorFound = false;
       for (const classBodyNode of classBodyNodes) {
         let templateAST = undefined;
         if (classBodyNode.type === "ClassMethod") {
           if (classBodyNode.kind === "constructor") {
+            constructorFound = true;
             templateAST = template.ast(
               `var ${className} = function () {}`);
             fun = templateAST.declarations[0].init;
@@ -166,6 +168,11 @@ const transformClass = (ast) => {
         if (templateAST !== undefined) {
           outputNodes.push(templateAST);
         }
+      }
+      if (!constructorFound) {
+        const constructorAST = template.ast(
+          `var ${className} = function () {}`);
+        outputNodes.unshift(constructorAST);
       }
       path.replaceWithMultiple(outputNodes);
     }
