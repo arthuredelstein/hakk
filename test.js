@@ -28,6 +28,9 @@ class MyClass {
   constructor() {
     this.q_ = 0;
   }
+  myField = 0;
+  static myStaticField = 3;
+  uninitializedField = 7;
   inc() {
     this.q_++;
   }
@@ -40,11 +43,20 @@ class MyClass {
   dec3() {
     this.q_+=-3;
   }
+  incN(N) {
+    this.q_-=N;
+  }
   inc2() {
     this.q_+=2;
   }
-  double() {
-    this.q_ *= 2;
+  halve() {
+    this.q_ /= 2;
+  }
+  async generator() {
+    return 1;
+  }
+  static run() {
+    console.log("run a static method, baby");
   }
   get q() {
     return this.q_;
@@ -53,7 +65,19 @@ class MyClass {
     this.q_ = value;
     console.log("set to " + value);
   }
-}
+  toString() {
+    return `yabba ${this.q_} dabba`;
+  }
+};
+
+class TestClass {
+  constructor() {
+    this.x_ = 0;
+  }
+  inc() {
+    this.x_++;
+  }
+};
 
 const thpbbb = (name, count) => {
   let result = [];
