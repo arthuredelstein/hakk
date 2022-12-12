@@ -155,7 +155,7 @@ const transformClass = (ast) => {
           outputNodes.push(templateAST);
         }
       }
-      path.parent.body = outputNodes;
+      path.replaceWithMultiple(outputNodes);
     }
   });
   return ast;
@@ -213,7 +213,6 @@ const useEvalWithCodeModifications = (replServer, modifierFunction) => {
     try {
       originalEval(modifierFunction(code), context, filename, callback);
     } catch (e) {
-      console.log(`attempted to evaluate: ${code}`);
       //console.log(e);
     }
   };
