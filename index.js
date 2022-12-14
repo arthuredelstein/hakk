@@ -197,7 +197,6 @@ const transformClass = (ast) => {
 
 // TODO:
 // `Extends` and `super` using https://stackoverflow.com/questions/15192722/javascript-extending-class
-// #privateMethod, #privateField
 
 // ## REPL setup
 
@@ -237,6 +236,9 @@ const evaluateChangedCodeFragments = async (replServer, code) => {
 };
 
 const prepare = (code) => {
+  if (code.trim().length === 0) {
+    return "\n";
+  }
   const result = generate(
     treeWithTopLevelDeclarationsMutable(
       transformClass(
