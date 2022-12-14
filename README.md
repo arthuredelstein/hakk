@@ -1,6 +1,6 @@
 # hakk
 
-A NodeJS REPL that lets you hack live on running JavaScript programs.
+A Node.js REPL that lets you hack live on running JavaScript programs.
 
 ## What hakk does
 
@@ -15,9 +15,9 @@ You can modify any code in the source file and `hakk` will keep things running. 
   - Classes. You can add new classes, and modify existing classes. If you add a new method or field to a class, existing instances of that class will immediately adopt the new behavior.
   - Imports. You can use `require` or `import` to import new library APIs in your running program.
 
-### Familiar NodeJS REPL
+### Familiar Node.js REPL
 
-`hakk` is built around the familiar NodeJS REPL interface. You can call functions you are working on in your source file to test them as you develop them. You can enter a top-level variable and the REPL will return that variable's value.
+`hakk` is built around the familiar Node.js REPL interface. You can call functions you are working on in your source file to test them as you develop them. You can enter a top-level variable and the REPL will return that variable's value.
 
 ### Getting started
 
