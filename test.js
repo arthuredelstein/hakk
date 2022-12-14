@@ -31,6 +31,10 @@ class MyClass {
   myField = 0;
   static myStaticField = 3;
   uninitializedField = 7;
+  #privateField = 11;
+  #privateMethod() { return 13; }
+  reveal() { return this.#privateField + this.#privateMethod(); }
+  setPrivateField(value) { this.#privateField = value; }
   inc() {
     this.q_++;
   }
