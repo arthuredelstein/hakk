@@ -117,6 +117,10 @@ const transformImport = (ast) => {
 //     configurable: true });
 const transformClass = (ast) => {
   traverse(ast, {
+    PrivateName(path) {
+      path.replaceWith(path.node.id);
+      path.node.name = "_PRIVATE_" + path.node.name;
+    },
     ClassDeclaration(path) {
       let className, classBodyNodes;
       const classNode = path.node;
@@ -130,6 +134,17 @@ const transformClass = (ast) => {
       let constructorFound = false;
       for (const classBodyNode of classBodyNodes) {
         let templateAST = undefined;
+        if (classBodyNode.type === "ClassPrivateMethod" ||
+            classBodyNode.type === "ClassPrivateProperty") {
+          classBodyNode.type =
+            {"ClassPrivateMethod"   : "ClassMethod",
+             "ClassPrivateProperty" : "ClassProperty"}[classBodyNode.type];
+          classBodyNode.key.type = "Identifier";
+          classBodyNode.key.name = "_PRIVATE_" + classBodyNode.key.id.name;
+          classBodyNode.key.id = undefined;
+        }
+        // Now that private nodes have been converted, we can
+        // process them further.
         if (classBodyNode.type === "ClassMethod") {
           if (classBodyNode.kind === "constructor") {
             constructorFound = true;
@@ -179,6 +194,10 @@ const transformClass = (ast) => {
   });
   return ast;
 };
+
+// TODO:
+// `Extends` and `super` using https://stackoverflow.com/questions/15192722/javascript-extending-class
+// #privateMethod, #privateField
 
 // ## REPL setup
 
