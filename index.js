@@ -7,6 +7,7 @@ const repl = require('node:repl');
 const template = require("@babel/template").default;
 const traverse = require("@babel/traverse").default;
 const { transformSync } = require("@babel/core");
+const hoistVariables = require("@babel/helper-hoist-variables").default;
 
 // ## Utility functions
 
@@ -200,6 +201,22 @@ const transformClass = (ast) => {
 
 // ## REPL setup
 
+var pgb;
+
+const hoistTopLevelVars = (ast) => {
+  traverse(ast, {
+    Program(path) {
+      let varNames = [];
+      hoistVariables(path, varData => varNames.push(varData.name));
+      for (let varName of varNames) {
+        const varDeclarationAST = template.ast(`var ${varName};`);
+        path.node.body.unshift(varDeclarationAST);
+      }
+    }
+  });
+  return ast;
+};
+
 let previousFragments = new Set();
 
 const evaluateChangedCodeFragments = async (replServer, code) => {
@@ -284,3 +301,4 @@ const run = (filename) => {
 };
 
 exports.run = run;
+
