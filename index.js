@@ -133,6 +133,10 @@ const transformClass = (ast) => {
       }
       let outputNodes = [];
       let constructorFound = false;
+      const declarationAST = template.ast(
+        `var ${className} = function (...args) { this.__hakk_constructor(...args); }`
+      );
+      outputNodes.push(declarationAST);
       for (const classBodyNode of classBodyNodes) {
         let templateAST = undefined;
         if (classBodyNode.type === "ClassPrivateMethod" ||
@@ -150,8 +154,8 @@ const transformClass = (ast) => {
           if (classBodyNode.kind === "constructor") {
             constructorFound = true;
             templateAST = template.ast(
-              `var ${className} = function () {}`);
-            fun = templateAST.declarations[0].init;
+              `${className}.prototype.__hakk_constructor = function () { }`);
+            fun = templateAST.expression.right;
           } else if (classBodyNode.kind === "method") {
             templateAST = template.ast(
               `${className}.${classBodyNode.static ? "" : "prototype."}${classBodyNode.key.name} = ${classBodyNode.async ? "async " : ""}function${classBodyNode.generator ? "*" : ""} () {}`
@@ -201,8 +205,8 @@ const transformClass = (ast) => {
 
 // ## REPL setup
 
-var pgb;
-
+// TODO:: Detect use of top-level await and if it's
+// found, wrap everything but the vars in (async () => { ... })()
 const hoistTopLevelVars = (ast) => {
   traverse(ast, {
     Program(path) {
