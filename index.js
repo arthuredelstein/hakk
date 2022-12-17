@@ -223,7 +223,7 @@ const hoistTopLevelVars = (ast) => {
 
 let previousFragments = new Set();
 
-const evaluateChangedCodeFragments = async (replServer, code) => {
+const evaluateChangedCodeFragments = async (replServer, code, filename) => {
   try {
     const tree = parse(code);
     const newFragments = new Set();
@@ -236,7 +236,7 @@ const evaluateChangedCodeFragments = async (replServer, code) => {
         previousFragments.delete(fragment);
       } else {
         await new Promise((resolve, reject) => {
-          replServer.eval(fragment, replServer.context, undefined,
+          replServer.eval(fragment, replServer.context, filename,
                           (err, result) => {
                             if (err) {
                               reject(err);
@@ -297,7 +297,7 @@ const run = (filename) => {
       try {
         replServer._refreshLine();
         replServer
-        evaluateChangedCodeFragments(replServer, prepare(code))
+        evaluateChangedCodeFragments(replServer, prepare(code), filename)
       } catch (e) {
         console.log(e);
       };
