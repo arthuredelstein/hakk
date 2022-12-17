@@ -1,18 +1,17 @@
-const fs = require("fs");
+const fs = require('fs');
 const fsPromises = require('node:fs/promises');
-const generate = require("@babel/generator").default;
-const parser = require("@babel/parser");
+const generate = require('@babel/generator').default;
+const parser = require('@babel/parser');
 const path = require('node:path');
 const repl = require('node:repl');
-const template = require("@babel/template").default;
-const traverse = require("@babel/traverse").default;
-const { transformSync } = require("@babel/core");
-const hoistVariables = require("@babel/helper-hoist-variables").default;
+const template = require('@babel/template').default;
+const traverse = require('@babel/traverse').default;
+const hoistVariables = require('@babel/helper-hoist-variables').default;
 
 // ## Utility functions
 
 // Ensure we allow 'import' keyword.
-const parse = (code) => parser.parse(code, { 'sourceType': 'module'});
+const parse = (code) => parser.parse(code, { sourceType: 'module' });
 
 const watchForFileChanges = (path, interval, callback) => {
   const readAndCallback = async () => {
@@ -33,10 +32,10 @@ const watchForFileChanges = (path, interval, callback) => {
 
 const treeWithTopLevelDeclarationsMutable = (tree) => {
   const topLevelNodes = tree.program.body;
-  for (let node of topLevelNodes) {
-    if (node.type === "VariableDeclaration") {
-      if (node.kind === "const" || node.kind === "let") {
-        node.kind = "var";
+  for (const node of topLevelNodes) {
+    if (node.type === 'VariableDeclaration') {
+      if (node.kind === 'const' || node.kind === 'let') {
+        node.kind = 'var';
       }
     }
   }
@@ -45,36 +44,36 @@ const treeWithTopLevelDeclarationsMutable = (tree) => {
 
 const transformImport = (ast) => {
   traverse(ast, {
-    ImportDeclaration(path) {
+    ImportDeclaration (path) {
       const source = path.node.source.value;
-      let specifiers = [];
-      let namespaceId = undefined;
-      for (let specifier of path.node.specifiers) {
-        if (specifier.type === "ImportDefaultSpecifier") {
+      const specifiers = [];
+      let namespaceId;
+      for (const specifier of path.node.specifiers) {
+        if (specifier.type === 'ImportDefaultSpecifier') {
           specifiers.push(`default: ${specifier.local.name}`);
-        } else if (specifier.type === "ImportSpecifier") {
-          if (specifier.imported.type === "Identifier" &&
+        } else if (specifier.type === 'ImportSpecifier') {
+          if (specifier.imported.type === 'Identifier' &&
               specifier.imported.name !== specifier.local.name) {
             specifiers.push(
               `${specifier.imported.name}: ${specifier.local.name}`);
-          } else if (specifier.imported.type === "StringLiteral" &&
+          } else if (specifier.imported.type === 'StringLiteral' &&
                      specifier.imported.value !== specifier.local.name) {
             specifiers.push(
               `'${specifier.imported.value}': ${specifier.local.name}`);
           } else {
             specifiers.push(specifier.local.name);
           }
-        } else if (specifier.type === "ImportNamespaceSpecifier") {
-          namespaceId = specifier.local.name
+        } else if (specifier.type === 'ImportNamespaceSpecifier') {
+          namespaceId = specifier.local.name;
         }
-      };
+      }
       const sourceString = `await import('${source}')`;
-      let line = "";
+      let line = '';
       if (namespaceId !== undefined) {
         line += `const ${namespaceId} = ${sourceString};`;
       }
       if (specifiers.length > 0) {
-        line += `const {${specifiers.join(", ")}} = ${namespaceId ?? sourceString};`
+        line += `const {${specifiers.join(', ')}} = ${namespaceId ?? sourceString};`;
       }
       if (namespaceId === undefined && specifiers.length === 0) {
         line = sourceString;
@@ -118,51 +117,54 @@ const transformImport = (ast) => {
 //     configurable: true });
 const transformClass = (ast) => {
   traverse(ast, {
-    PrivateName(path) {
+    PrivateName (path) {
       path.replaceWith(path.node.id);
-      path.node.name = "_PRIVATE_" + path.node.name;
+      path.node.name = '_PRIVATE_' + path.node.name;
     },
-    ClassDeclaration(path) {
+    ClassDeclaration (path) {
       let className, classBodyNodes;
       const classNode = path.node;
-      if (classNode.id.type === "Identifier") {
+      if (classNode.id.type === 'Identifier') {
         className = classNode.id.name;
       }
-      if (classNode.body.type === "ClassBody") {
+      if (classNode.body.type === 'ClassBody') {
         classBodyNodes = classNode.body.body;
       }
-      let outputNodes = [];
+      const outputNodes = [];
       let constructorFound = false;
       const declarationAST = template.ast(
         `var ${className} = function (...args) { this.__hakk_constructor(...args); }`
       );
       outputNodes.push(declarationAST);
       for (const classBodyNode of classBodyNodes) {
-        let templateAST = undefined;
-        if (classBodyNode.type === "ClassPrivateMethod" ||
-            classBodyNode.type === "ClassPrivateProperty") {
+        let templateAST;
+        if (classBodyNode.type === 'ClassPrivateMethod' ||
+            classBodyNode.type === 'ClassPrivateProperty') {
           classBodyNode.type =
-            {"ClassPrivateMethod"   : "ClassMethod",
-             "ClassPrivateProperty" : "ClassProperty"}[classBodyNode.type];
-          classBodyNode.key.type = "Identifier";
-          classBodyNode.key.name = "_PRIVATE_" + classBodyNode.key.id.name;
+            {
+              ClassPrivateMethod: 'ClassMethod',
+              ClassPrivateProperty: 'ClassProperty'
+            }[classBodyNode.type];
+          classBodyNode.key.type = 'Identifier';
+          classBodyNode.key.name = '_PRIVATE_' + classBodyNode.key.id.name;
           classBodyNode.key.id = undefined;
         }
         // Now that private nodes have been converted, we can
         // process them further.
-        if (classBodyNode.type === "ClassMethod") {
-          if (classBodyNode.kind === "constructor") {
+        if (classBodyNode.type === 'ClassMethod') {
+          let fun;
+          if (classBodyNode.kind === 'constructor') {
             constructorFound = true;
             templateAST = template.ast(
               `${className}.prototype.__hakk_constructor = function () { }`);
             fun = templateAST.expression.right;
-          } else if (classBodyNode.kind === "method") {
+          } else if (classBodyNode.kind === 'method') {
             templateAST = template.ast(
-              `${className}.${classBodyNode.static ? "" : "prototype."}${classBodyNode.key.name} = ${classBodyNode.async ? "async " : ""}function${classBodyNode.generator ? "*" : ""} () {}`
+              `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = ${classBodyNode.async ? 'async ' : ''}function${classBodyNode.generator ? '*' : ''} () {}`
             );
             fun = templateAST.expression.right;
-          } else if (classBodyNode.kind === "get" ||
-                     classBodyNode.kind === "set") {
+          } else if (classBodyNode.kind === 'get' ||
+                     classBodyNode.kind === 'set') {
             templateAST = template.ast(
               `Object.defineProperty(${className}.prototype, "${classBodyNode.key.name}", {
                  ${classBodyNode.kind}: function () { },
@@ -175,9 +177,9 @@ const transformClass = (ast) => {
           }
           fun.body = classBodyNode.body;
           fun.params = classBodyNode.params;
-        } else if (classBodyNode.type === "ClassProperty") {
+        } else if (classBodyNode.type === 'ClassProperty') {
           templateAST = template.ast(
-            `${className}.${classBodyNode.static ? "" : "prototype."}${classBodyNode.key.name} = undefined;`
+            `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = undefined;`
           );
           if (classBodyNode.value !== null) {
             templateAST.expression.right = classBodyNode.value;
@@ -209,10 +211,10 @@ const transformClass = (ast) => {
 // found, wrap everything but the vars in (async () => { ... })()
 const hoistTopLevelVars = (ast) => {
   traverse(ast, {
-    Program(path) {
-      let varNames = [];
+    Program (path) {
+      const varNames = [];
       hoistVariables(path, varData => varNames.push(varData.name));
-      for (let varName of varNames) {
+      for (const varName of varNames) {
         const varDeclarationAST = template.ast(`var ${varName};`);
         path.node.body.unshift(varDeclarationAST);
       }
@@ -227,29 +229,29 @@ const evaluateChangedCodeFragments = async (replServer, code, filename) => {
   try {
     const tree = parse(code);
     const newFragments = new Set();
-    for (let node of tree.program.body) {
+    for (const node of tree.program.body) {
       // Remove trailing comments because they are redundant.
       node.trailingComments = undefined;
-      const fragment = generate(node, {}, "").code;
+      const fragment = generate(node, {}, '').code;
       newFragments.add(fragment);
       if (previousFragments.has(fragment)) {
         previousFragments.delete(fragment);
       } else {
         await new Promise((resolve, reject) => {
           replServer.eval(fragment, replServer.context, filename,
-                          (err, result) => {
-                            if (err) {
-                              reject(err);
-                            } else {
-                              resolve(result);
-                            }
-                          });
+            (err, result) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve(result);
+              }
+            });
         });
       }
     }
-    for (let fragment of previousFragments) {
-      // TODO: remove old fragment
-    }
+    // for (const fragment of previousFragments) {
+    // TODO: remove old fragment
+    // }
     previousFragments = newFragments;
   } catch (e) {
     console.log(e);
@@ -258,7 +260,7 @@ const evaluateChangedCodeFragments = async (replServer, code, filename) => {
 
 const prepare = (code) => {
   if (code.trim().length === 0) {
-    return "\n";
+    return '\n';
   }
   const result = generate(
     treeWithTopLevelDeclarationsMutable(
@@ -274,7 +276,7 @@ const useEvalWithCodeModifications = (replServer, modifierFunction) => {
     try {
       originalEval(modifierFunction(code), context, filename, callback);
     } catch (e) {
-      //console.log(e);
+      // console.log(e);
     }
   };
   replServer.eval = newEval;
@@ -296,13 +298,11 @@ const run = (filename) => {
     (code) => {
       try {
         replServer._refreshLine();
-        replServer
-        evaluateChangedCodeFragments(replServer, prepare(code), filename)
+        evaluateChangedCodeFragments(replServer, prepare(code), filename);
       } catch (e) {
         console.log(e);
-      };
+      }
     });
 };
 
 exports.run = run;
-
