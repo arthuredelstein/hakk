@@ -132,12 +132,10 @@ const transformClass = (ast) => {
       }
       const outputNodes = [];
       let constructorFound = false;
-      const declarationAST = template.ast(
-        `var ${className} = function (...args) { this.__hakk_constructor(...args); }`
-      );
-      outputNodes.push(declarationAST);
       for (const classBodyNode of classBodyNodes) {
         let templateAST;
+        // Convert private methods and fields to public methods
+        // and fields  with a `_PRIVATE_` prefix.
         if (classBodyNode.type === 'ClassPrivateMethod' ||
             classBodyNode.type === 'ClassPrivateProperty') {
           classBodyNode.type =
@@ -149,14 +147,14 @@ const transformClass = (ast) => {
           classBodyNode.key.name = '_PRIVATE_' + classBodyNode.key.id.name;
           classBodyNode.key.id = undefined;
         }
-        // Now that private nodes have been converted, we can
-        // process them further.
+        // Convert methods and fields declarations to separable
+        // assignment statements.
         if (classBodyNode.type === 'ClassMethod') {
           let fun;
           if (classBodyNode.kind === 'constructor') {
             constructorFound = true;
             templateAST = template.ast(
-              `${className}.prototype.__hakk_constructor = function () { }`);
+              `${className}.prototype._CONSTRUCTOR_ = function () { }`);
             fun = templateAST.expression.right;
           } else if (classBodyNode.kind === 'method') {
             templateAST = template.ast(
@@ -191,11 +189,19 @@ const transformClass = (ast) => {
           outputNodes.push(templateAST);
         }
       }
+      // Create an empty constructor delegate if there wasn't one
+      // explicitly declared.
       if (!constructorFound) {
         const constructorAST = template.ast(
-          `var ${className} = function () {}`);
+          `${className}.prototype._CONSTRUCTOR_ = function () {}`);
         outputNodes.unshift(constructorAST);
       }
+      // Delegate this class's constructor to `this._CONSTRUCTOR_` so
+      // that user can replace it dynamically.
+      const declarationAST = template.ast(
+        `var ${className} = function (...args) { this._CONSTRUCTOR_(...args); }`
+      );
+      outputNodes.unshift(declarationAST);
       path.replaceWithMultiple(outputNodes);
     }
   });
