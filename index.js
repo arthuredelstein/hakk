@@ -122,10 +122,14 @@ const transformClass = (ast) => {
       path.node.name = '_PRIVATE_' + path.node.name;
     },
     ClassDeclaration (path) {
-      let className, classBodyNodes;
+      let className, superClassName, classBodyNodes;
       const classNode = path.node;
       if (classNode.id.type === 'Identifier') {
         className = classNode.id.name;
+      }
+      if (classNode.superClass &&
+          classNode.superClass.type === "Identifier") {
+        superClassName = classNode.superClass.name;
       }
       if (classNode.body.type === 'ClassBody') {
         classBodyNodes = classNode.body.body;
@@ -195,6 +199,12 @@ const transformClass = (ast) => {
         const constructorAST = template.ast(
           `${className}.prototype._CONSTRUCTOR_ = function () {}`);
         outputNodes.unshift(constructorAST);
+      }
+      if (superClassName !== undefined) {
+        const inheritAST = template.ast(
+          `Reflect.setPrototypeOf(${className}.prototype, ${superClassName}.prototype);`
+        );
+        outputNodes.unshift(inheritAST);
       }
       // Delegate this class's constructor to `this._CONSTRUCTOR_` so
       // that user can replace it dynamically.
