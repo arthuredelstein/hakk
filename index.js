@@ -115,6 +115,9 @@ const transformImport = (ast) => {
 // Object.defineProperty(A.prototype, "q",
 //   { set: function (value) { this.q_ = value; }
 //     configurable: true });
+//
+// See also: good stuff at
+// https://github.com/AMorgaut/babel-plugin-transform-class/blob/master/src/index.js
 const transformClass = (ast) => {
   traverse(ast, {
     PrivateName (path) {
