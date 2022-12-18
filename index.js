@@ -131,7 +131,7 @@ const transformClass = (ast) => {
         className = classNode.id.name;
       }
       if (classNode.superClass &&
-          classNode.superClass.type === "Identifier") {
+          classNode.superClass.type === 'Identifier') {
         superClassName = classNode.superClass.name;
       }
       if (classNode.body.type === 'ClassBody') {
