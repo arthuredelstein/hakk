@@ -26,7 +26,7 @@ const foo = (a) => {
 
 class MyClass {
   constructor() {
-    this.q_ = 0;
+    this.q_ = 13;
   }
   myField = 0;
   static myStaticField = 3;
@@ -48,7 +48,7 @@ class MyClass {
     this.q_+=-3;
   }
   incN(N) {
-    this.q_-=N;
+    this.q_+=N;
   }
   inc2() {
     this.q_+=2;
@@ -63,7 +63,8 @@ class MyClass {
     console.log("run a static method, baby");
   }
   get q() {
-    return this.q_;
+//    throw new Error("test");
+    return this.q_+"";
   }
   set q(value) {
     this.q_ = value;
@@ -80,6 +81,18 @@ class TestClass {
     this.x_++;
   }
 };
+
+class ChildClass extends MyClass {
+  check() {
+    return "check " + this.q_;
+  }
+  halve() {
+    this.q_ %= 2;
+  }
+  toString() {
+    return `child`;//+ super.toString();
+  }
+}
 
 const thpbbb = (name, count) => {
   let result = [];
@@ -123,3 +136,7 @@ const reverse = (s) => {
 const join = (a, b) => {
   return toTitleCase(a) + " " + toTitleCase(b);
 };
+
+if (import.meta === "blah") {
+  console.log("hi");
+}
