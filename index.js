@@ -44,6 +44,11 @@ const treeWithTopLevelDeclarationsMutable = (tree) => {
 
 const transformImport = (ast) => {
   traverse(ast, {
+    MetaProperty (path) {
+      if (path.node.meta.name === 'import') {
+        path.replaceWith(template.ast('_IMPORT_'));
+      }
+    },
     ImportDeclaration (path) {
       const source = path.node.source.value;
       const specifiers = [];
@@ -310,6 +315,7 @@ const run = (filename) => {
     __filename = '${filenameFullPath}';
     __dirname = '${path.dirname(filenameFullPath)}';
     let exports = {};
+    var _IMPORT_ = { meta: ''};
   `;
   evaluateChangedCodeFragments(replServer, setGlobalsCommand);
   watchForFileChanges(

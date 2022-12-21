@@ -20,7 +20,8 @@ const scopedEvaluator = function () {
   // Discard first empty value.
   iterator.next();
   // Return an evaluation function that
-  // takes code and returns its eval'd value.
+  // takes code and returns the result of eval
+  // run in the generator scope.
   // If evaluation causes an error, then throw
   // that error instead.
   return function (code) {
