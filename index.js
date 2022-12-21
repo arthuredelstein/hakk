@@ -7,6 +7,8 @@ const repl = require('node:repl');
 const template = require('@babel/template').default;
 const traverse = require('@babel/traverse').default;
 const hoistVariables = require('@babel/helper-hoist-variables').default;
+const { createHash } = require('node:crypto');
+const homedir = require('os').homedir();
 
 // ## Utility functions
 
@@ -27,6 +29,9 @@ const watchForFileChanges = (path, interval, callback) => {
       }
     });
 };
+
+const sha256 = (text) =>
+  createHash('sha256').update(text, 'utf8').digest().toString("base64");
 
 // ## AST transformations
 
@@ -306,11 +311,14 @@ const useEvalWithCodeModifications = (replServer, modifierFunction) => {
   replServer.eval = newEval;
 };
 
-const run = (filename) => {
+const run = async (filename) => {
   const options = { useColors: true, prompt: `${filename}> ` };
   const replServer = new repl.REPLServer(options);
-  useEvalWithCodeModifications(replServer, prepare);
   const filenameFullPath = path.resolve(filename);
+  const historyDir = path.join(homedir, ".hakk", "history");
+  fs.mkdirSync(historyDir, { recursive: true });
+  await new Promise(resolve => replServer.setupHistory(path.join(historyDir, sha256(filenameFullPath)), resolve));
+  useEvalWithCodeModifications(replServer, prepare);
   const setGlobalsCommand = `
     __filename = '${filenameFullPath}';
     __dirname = '${path.dirname(filenameFullPath)}';
