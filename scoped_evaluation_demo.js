@@ -1,22 +1,22 @@
 const scopedEvaluator = function () {
   // Create a generator that reads a value on yield
   // evaluates it, and sends the result back.
-  const generator = function* () {
-    let valueToSend = undefined;
+  const generator = function * () {
+    let valueToSend;
     while (true) {
       const receivedValue = yield valueToSend;
-      if (receivedValue === ".end") {
+      if (receivedValue === '.end') {
         break;
       }
       try {
-        valueToSend = { result: eval(receivedValue)};
+        valueToSend = { result: eval(receivedValue) };
       } catch (e) {
-        valueToSend = { error: e }
+        valueToSend = { error: e };
       }
     }
-  }
+  };
   // Run the generator.
-  let iterator = generator();
+  const iterator = generator();
   // Discard first empty value.
   iterator.next();
   // Return an evaluation function that
