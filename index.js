@@ -32,7 +32,7 @@ const watchForFileChanges = (path, interval, callback) => {
 
 // Take a string and return the sha256 digest in a hex string (64 characters).
 const sha256 = (text) =>
-  createHash('sha256').update(text, 'utf8').digest().toString("hex");
+  createHash('sha256').update(text, 'utf8').digest().toString('hex');
 
 // ## AST transformations
 
@@ -316,7 +316,7 @@ const run = async (filename) => {
   const options = { useColors: true, prompt: `${filename}> ` };
   const replServer = new repl.REPLServer(options);
   const filenameFullPath = path.resolve(filename);
-  const historyDir = path.join(homedir, ".hakk", "history");
+  const historyDir = path.join(homedir, '.hakk', 'history');
   fs.mkdirSync(historyDir, { recursive: true });
   await new Promise(resolve => replServer.setupHistory(path.join(historyDir, sha256(filenameFullPath)), resolve));
   useEvalWithCodeModifications(replServer, prepare);
