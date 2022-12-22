@@ -153,7 +153,7 @@ const transformClass = (ast) => {
         superClassNames.pop();
       },
       enter(path) {
- q        let className, superClassName, classBodyNodes;
+        let className, superClassName, classBodyNodes;
         const classNode = path.node;
         if (classNode.id.type === 'Identifier') {
           className = classNode.id.name;
