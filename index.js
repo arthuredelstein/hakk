@@ -139,110 +139,114 @@ const handleCallExpression = (path, superClassName) => {
 // See also: good stuff at
 // https://github.com/AMorgaut/babel-plugin-transform-class/blob/master/src/index.js
 const transformClass = (ast) => {
-  let currentSuperClassName;
+  let superClassNames = [];
   traverse(ast, {
     CallExpression(path) {
-      handleCallExpression(path, currentSuperClassName);
+      handleCallExpression(path, superClassNames[superClassNames.length - 1]);
     },
     PrivateName (path) {
       path.replaceWith(path.node.id);
       path.node.name = '_PRIVATE_' + path.node.name;
     },
-    ClassDeclaration (path) {
-      // TODO: Properly handle currentSuperClassName using enter and exit.
-      let className, superClassName, classBodyNodes;
-      const classNode = path.node;
-      if (classNode.id.type === 'Identifier') {
-        className = classNode.id.name;
-        classSeen = className;
-      }
-      if (classNode.superClass &&
-          classNode.superClass.type === 'Identifier') {
-        superClassName = classNode.superClass.name;
-        currentSuperClassName = superClassName;
-      }
-      if (classNode.body.type === 'ClassBody') {
-        classBodyNodes = classNode.body.body;
-      }
-      const outputNodes = [];
-      let constructorFound = false;
-      for (const classBodyNode of classBodyNodes) {
-        let templateAST;
-        // Convert private methods and fields to public methods
-        // and fields  with a `_PRIVATE_` prefix.
-        if (classBodyNode.type === 'ClassPrivateMethod' ||
-            classBodyNode.type === 'ClassPrivateProperty') {
-          classBodyNode.type =
-            {
-              ClassPrivateMethod: 'ClassMethod',
-              ClassPrivateProperty: 'ClassProperty'
-            }[classBodyNode.type];
-          classBodyNode.key.type = 'Identifier';
-          classBodyNode.key.name = '_PRIVATE_' + classBodyNode.key.id.name;
-          classBodyNode.key.id = undefined;
+    ClassDeclaration: {
+      exit(path) {
+        superClassNames.pop();
+      },
+      enter(path) {
+ q        let className, superClassName, classBodyNodes;
+        const classNode = path.node;
+        if (classNode.id.type === 'Identifier') {
+          className = classNode.id.name;
+          classSeen = className;
         }
-        // Convert methods and fields declarations to separable
-        // assignment statements.
-        if (classBodyNode.type === 'ClassMethod') {
-          let fun;
-          if (classBodyNode.kind === 'constructor') {
-            constructorFound = true;
-            templateAST = template.ast(
-              `${className}.prototype._CONSTRUCTOR_ = function () { }`);
-            fun = templateAST.expression.right;
-          } else if (classBodyNode.kind === 'method') {
-            templateAST = template.ast(
-              `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = ${classBodyNode.async ? 'async ' : ''}function${classBodyNode.generator ? '*' : ''} () {}`
-            );
-            fun = templateAST.expression.right;
-          } else if (classBodyNode.kind === 'get' ||
-                     classBodyNode.kind === 'set') {
-            templateAST = template.ast(
-              `Object.defineProperty(${className}.prototype, "${classBodyNode.key.name}", {
+        if (classNode.superClass &&
+          classNode.superClass.type === 'Identifier') {
+          superClassName = classNode.superClass.name;
+          superClassNames.push(superClassName);
+        }
+        if (classNode.body.type === 'ClassBody') {
+          classBodyNodes = classNode.body.body;
+        }
+        const outputNodes = [];
+        let constructorFound = false;
+        for (const classBodyNode of classBodyNodes) {
+          let templateAST;
+          // Convert private methods and fields to public methods
+          // and fields  with a `_PRIVATE_` prefix.
+          if (classBodyNode.type === 'ClassPrivateMethod' ||
+            classBodyNode.type === 'ClassPrivateProperty') {
+            classBodyNode.type =
+              {
+                ClassPrivateMethod: 'ClassMethod',
+                ClassPrivateProperty: 'ClassProperty'
+              }[classBodyNode.type];
+            classBodyNode.key.type = 'Identifier';
+            classBodyNode.key.name = '_PRIVATE_' + classBodyNode.key.id.name;
+            classBodyNode.key.id = undefined;
+          }
+          // Convert methods and fields declarations to separable
+          // assignment statements.
+          if (classBodyNode.type === 'ClassMethod') {
+            let fun;
+            if (classBodyNode.kind === 'constructor') {
+              constructorFound = true;
+              templateAST = template.ast(
+                `${className}.prototype._CONSTRUCTOR_ = function () { }`);
+              fun = templateAST.expression.right;
+            } else if (classBodyNode.kind === 'method') {
+              templateAST = template.ast(
+                `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = ${classBodyNode.async ? 'async ' : ''}function${classBodyNode.generator ? '*' : ''} () {}`
+              );
+              fun = templateAST.expression.right;
+            } else if (classBodyNode.kind === 'get' ||
+              classBodyNode.kind === 'set') {
+              templateAST = template.ast(
+                `Object.defineProperty(${className}.prototype, "${classBodyNode.key.name}", {
                  ${classBodyNode.kind}: function () { },
                  configurable: true
                });`
+              );
+              fun = templateAST.expression.arguments[2].properties[0].value;
+            } else {
+              throw new Error(`Unexpected ClassMethod kind ${classBodyNode.kind}`);
+            }
+            fun.body = classBodyNode.body;
+            fun.params = classBodyNode.params;
+          } else if (classBodyNode.type === 'ClassProperty') {
+            templateAST = template.ast(
+              `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = undefined;`
             );
-            fun = templateAST.expression.arguments[2].properties[0].value;
+            if (classBodyNode.value !== null) {
+              templateAST.expression.right = classBodyNode.value;
+            }
           } else {
-            throw new Error(`Unexpected ClassMethod kind ${classBodyNode.kind}`);
+            throw new Error(`Unexpected ClassBody node type ${classBodyNode.type}`);
           }
-          fun.body = classBodyNode.body;
-          fun.params = classBodyNode.params;
-        } else if (classBodyNode.type === 'ClassProperty') {
-          templateAST = template.ast(
-            `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = undefined;`
+          if (templateAST !== undefined) {
+            outputNodes.push(templateAST);
+          }
+        }
+        // Create an empty constructor delegate if there wasn't one
+        // explicitly declared.
+        if (!constructorFound) {
+          const constructorAST = template.ast(
+            `${className}.prototype._CONSTRUCTOR_ = function () {}`);
+          outputNodes.unshift(constructorAST);
+        }
+        if (superClassName !== undefined) {
+          const inheritAST = template.ast(
+            `Reflect.setPrototypeOf(${className}.prototype, ${superClassName}.prototype);`
           );
-          if (classBodyNode.value !== null) {
-            templateAST.expression.right = classBodyNode.value;
-          }
-        } else {
-          throw new Error(`Unexpected ClassBody node type ${classBodyNode.type}`);
+          outputNodes.unshift(inheritAST);
         }
-        if (templateAST !== undefined) {
-          outputNodes.push(templateAST);
-        }
-      }
-      // Create an empty constructor delegate if there wasn't one
-      // explicitly declared.
-      if (!constructorFound) {
-        const constructorAST = template.ast(
-          `${className}.prototype._CONSTRUCTOR_ = function () {}`);
-        outputNodes.unshift(constructorAST);
-      }
-      if (superClassName !== undefined) {
-        const inheritAST = template.ast(
-          `Reflect.setPrototypeOf(${className}.prototype, ${superClassName}.prototype);`
+        // Delegate this class's constructor to `this._CONSTRUCTOR_` so
+        // that user can replace it dynamically.
+        const declarationAST = template.ast(
+          `var ${className} = function (...args) { this._CONSTRUCTOR_(...args); }`
         );
-        outputNodes.unshift(inheritAST);
+        outputNodes.unshift(declarationAST);
+        path.replaceWithMultiple(outputNodes);
       }
-      // Delegate this class's constructor to `this._CONSTRUCTOR_` so
-      // that user can replace it dynamically.
-      const declarationAST = template.ast(
-        `var ${className} = function (...args) { this._CONSTRUCTOR_(...args); }`
-      );
-      outputNodes.unshift(declarationAST);
-      path.replaceWithMultiple(outputNodes);
     }
   });
   return ast;
