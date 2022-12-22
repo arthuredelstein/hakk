@@ -100,6 +100,15 @@ const transformImport = (ast) => {
   return ast;
 };
 
+const handleCallExpression = (path, superClassName) => {
+  if (path.node.callee.type === "Super") {
+    const ast = template.ast(`${superClassName}.prototype._CONSTRUCTOR_.call(this)`);
+    const expressionAST = ast.expression;
+    expressionAST.arguments = expressionAST.arguments.concat(path.node.arguments);
+    path.replaceWith(expressionAST);
+  }
+};
+
 // Make class declarations mutable by transforming to prototype
 // construction.
 //
@@ -130,20 +139,27 @@ const transformImport = (ast) => {
 // See also: good stuff at
 // https://github.com/AMorgaut/babel-plugin-transform-class/blob/master/src/index.js
 const transformClass = (ast) => {
+  let currentSuperClassName;
   traverse(ast, {
+    CallExpression(path) {
+      handleCallExpression(path, currentSuperClassName);
+    },
     PrivateName (path) {
       path.replaceWith(path.node.id);
       path.node.name = '_PRIVATE_' + path.node.name;
     },
     ClassDeclaration (path) {
+      // TODO: Properly handle currentSuperClassName using enter and exit.
       let className, superClassName, classBodyNodes;
       const classNode = path.node;
       if (classNode.id.type === 'Identifier') {
         className = classNode.id.name;
+        classSeen = className;
       }
       if (classNode.superClass &&
           classNode.superClass.type === 'Identifier') {
         superClassName = classNode.superClass.name;
+        currentSuperClassName = superClassName;
       }
       if (classNode.body.type === 'ClassBody') {
         classBodyNodes = classNode.body.body;
