@@ -101,12 +101,17 @@ const transformImport = (ast) => {
 };
 
 const handleCallExpression = (path, superClassName) => {
+  let ast;
   if (path.node.callee.type === "Super") {
-    const ast = template.ast(`${superClassName}.prototype._CONSTRUCTOR_.call(this)`);
-    const expressionAST = ast.expression;
-    expressionAST.arguments = expressionAST.arguments.concat(path.node.arguments);
-    path.replaceWith(expressionAST);
+    ast = template.ast(`${superClassName}.prototype._CONSTRUCTOR_.call(this)`);
+  } else if (path.node.callee.type === "MemberExpression" &&
+             path.node.callee.object.type === "Super") {
+    methodName = path.node.callee.property.name; 
+    ast = template.ast(`${superClassName}.prototype.${methodName}.call(this)`);
   }
+  const expressionAST = ast.expression;
+  expressionAST.arguments = expressionAST.arguments.concat(path.node.arguments);
+  path.replaceWith(expressionAST);
 };
 
 // Make class declarations mutable by transforming to prototype
