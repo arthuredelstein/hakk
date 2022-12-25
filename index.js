@@ -102,11 +102,11 @@ const transformImport = (ast) => {
 
 const handleCallExpression = (path, superClassName) => {
   let ast;
-  if (path.node.callee.type === "Super") {
+  if (path.node.callee.type === 'Super') {
     ast = template.ast(`${superClassName}.prototype._CONSTRUCTOR_.call(this)`);
-  } else if (path.node.callee.type === "MemberExpression" &&
-             path.node.callee.object.type === "Super") {
-    methodName = path.node.callee.property.name; 
+  } else if (path.node.callee.type === 'MemberExpression' &&
+             path.node.callee.object.type === 'Super') {
+    const methodName = path.node.callee.property.name;
     ast = template.ast(`${superClassName}.prototype.${methodName}.call(this)`);
   }
   const expressionAST = ast.expression;
@@ -144,9 +144,9 @@ const handleCallExpression = (path, superClassName) => {
 // See also: good stuff at
 // https://github.com/AMorgaut/babel-plugin-transform-class/blob/master/src/index.js
 const transformClass = (ast) => {
-  let superClassNames = [];
+  const superClassNames = [];
   traverse(ast, {
-    CallExpression(path) {
+    CallExpression (path) {
       handleCallExpression(path, superClassNames[superClassNames.length - 1]);
     },
     PrivateName (path) {
@@ -154,15 +154,14 @@ const transformClass = (ast) => {
       path.node.name = '_PRIVATE_' + path.node.name;
     },
     ClassDeclaration: {
-      exit(path) {
+      exit (path) {
         superClassNames.pop();
       },
-      enter(path) {
+      enter (path) {
         let className, superClassName, classBodyNodes;
         const classNode = path.node;
         if (classNode.id.type === 'Identifier') {
           className = classNode.id.name;
-          classSeen = className;
         }
         if (classNode.superClass &&
           classNode.superClass.type === 'Identifier') {
