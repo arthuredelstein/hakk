@@ -240,7 +240,6 @@ const transformClass = (ast) => {
         // already explicitly declared. If a superclass exists,
         // we need to call that constructor.
         if (!constructorFound) {
-          console.log({ constructorFound, className, superClassName });
           const constructorAST = template.ast(
             superClassName === undefined
               ? `${className}.prototype._CONSTRUCTOR_ = function () {};`
