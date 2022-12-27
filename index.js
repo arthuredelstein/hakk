@@ -107,8 +107,8 @@ const handleCallExpression = (path, superClassName) => {
   } else if (path.node.callee.type === 'MemberExpression' &&
              path.node.callee.object.type === 'Super') {
     const methodName = path.node.callee.property.name;
-    status = false;
-    ast = template.ast(`${superClassName}${status ? "" : ".prototype"}.${methodName}.call(${status ? "" : "this"})`);
+    const status = false;
+    ast = template.ast(`${superClassName}${status ? '' : '.prototype'}.${methodName}.call(${status ? '' : 'this'})`);
   } else {
     return;
   }
@@ -240,11 +240,11 @@ const transformClass = (ast) => {
         // already explicitly declared. If a superclass exists,
         // we need to call that constructor.
         if (!constructorFound) {
-          console.log({constructorFound, className, superClassName});
+          console.log({ constructorFound, className, superClassName });
           const constructorAST = template.ast(
-            superClassName === undefined ?
-              `${className}.prototype._CONSTRUCTOR_ = function () {};` :
-              `${className}.prototype._CONSTRUCTOR_ = ${superClassName}.prototype._CONSTRUCTOR_;`
+            superClassName === undefined
+              ? `${className}.prototype._CONSTRUCTOR_ = function () {};`
+              : `${className}.prototype._CONSTRUCTOR_ = ${superClassName}.prototype._CONSTRUCTOR_;`
           );
           outputNodes.unshift(constructorAST);
         }
