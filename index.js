@@ -107,7 +107,10 @@ const handleCallExpression = (path, superClassName) => {
   } else if (path.node.callee.type === 'MemberExpression' &&
              path.node.callee.object.type === 'Super') {
     const methodName = path.node.callee.property.name;
-    ast = template.ast(`${superClassName}.prototype.${methodName}.call(this)`);
+    status = false;
+    ast = template.ast(`${superClassName}${status ? "" : ".prototype"}.${methodName}.call(${status ? "" : "this"})`);
+  } else {
+    return;
   }
   const expressionAST = ast.expression;
   expressionAST.arguments = expressionAST.arguments.concat(path.node.arguments);
@@ -145,9 +148,12 @@ const handleCallExpression = (path, superClassName) => {
 // https://github.com/AMorgaut/babel-plugin-transform-class/blob/master/src/index.js
 const transformClass = (ast) => {
   const superClassNames = [];
+  const enclosingMethodStatuses = [];
   traverse(ast, {
     CallExpression (path) {
-      handleCallExpression(path, superClassNames[superClassNames.length - 1]);
+      handleCallExpression(
+        path, superClassNames[superClassNames.length - 1],
+        enclosingMethodStatuses[enclosingMethodStatuses.length - 1]);
     },
     PrivateName (path) {
       path.replaceWith(path.node.id);
@@ -230,11 +236,16 @@ const transformClass = (ast) => {
             outputNodes.push(templateAST);
           }
         }
-        // Create an empty constructor delegate if there wasn't one
-        // explicitly declared.
+        // Create a constructor delegate if there wasn't one
+        // already explicitly declared. If a superclass exists,
+        // we need to call that constructor.
         if (!constructorFound) {
+          console.log({constructorFound, className, superClassName});
           const constructorAST = template.ast(
-            `${className}.prototype._CONSTRUCTOR_ = function () {}`);
+            superClassName === undefined ?
+              `${className}.prototype._CONSTRUCTOR_ = function () {};` :
+              `${className}.prototype._CONSTRUCTOR_ = ${superClassName}.prototype._CONSTRUCTOR_;`
+          );
           outputNodes.unshift(constructorAST);
         }
         if (superClassName !== undefined) {
