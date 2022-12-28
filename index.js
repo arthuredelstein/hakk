@@ -132,7 +132,8 @@ const handleMemberExpression = (path) => {
   let ast;
   if (path.node.object.type === 'Super') {
     const propertyName = path.node.property.name;
-    const isStatic = getEnclosingProperty(path).node.static;
+    const enclosure = getEnclosingProperty(path) ?? getEnclosingMethod(path);
+    const isStatic = enclosure.node.static;
     const superClassName = getEnclosingSuperClassName(path);
     ast = template.ast(`${superClassName}${isStatic ? '' : '.prototype'}.${propertyName};`);
   } else {
