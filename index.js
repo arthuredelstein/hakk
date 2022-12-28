@@ -100,21 +100,39 @@ const transformImport = (ast) => {
   return ast;
 };
 
-const handleCallExpression = (path, superClassName) => {
+const getEnclosingClass = path => path.findParent((path) => path.isClassDeclaration());
+
+const getEnclosingSuperClassName = path => getEnclosingClass(path).node.superClass.name;
+
+const getEnclosingMethod = path => path.findParent((path) => path.isMethod());
+
+const handleCallExpression = (path) => {
   let ast;
   if (path.node.callee.type === 'Super') {
+    const superClassName = getEnclosingSuperClassName(path);
     ast = template.ast(`${superClassName}.prototype._CONSTRUCTOR_.call(this)`);
   } else if (path.node.callee.type === 'MemberExpression' &&
              path.node.callee.object.type === 'Super') {
     const methodName = path.node.callee.property.name;
-    const status = false;
-    ast = template.ast(`${superClassName}${status ? '' : '.prototype'}.${methodName}.call(${status ? '' : 'this'})`);
+    const methodPath = getEnclosingMethod(path);
+    const isStatic = methodPath.node.static;
+    const superClassName = getEnclosingSuperClassName(path);
+    ast = template.ast(`${superClassName}${isStatic ? '' : '.prototype'}.${methodName}.call(${isStatic ? '' : 'this'})`);
   } else {
     return;
   }
   const expressionAST = ast.expression;
   expressionAST.arguments = expressionAST.arguments.concat(path.node.arguments);
   path.replaceWith(expressionAST);
+};
+
+// Convert private methods and fields to public methods
+// and fields  with a `_PRIVATE_` prefix.
+const handlePrivateProperty = (path, propertyType) => {
+  path.node.type = propertyType;
+  path.node.key.type = "Identifier";
+  path.node.key.name = '_PRIVATE_' + path.node.key.id.name;
+  path.node.key.id = undefined;
 };
 
 // Make class declarations mutable by transforming to prototype
@@ -148,22 +166,24 @@ const handleCallExpression = (path, superClassName) => {
 // https://github.com/AMorgaut/babel-plugin-transform-class/blob/master/src/index.js
 const transformClass = (ast) => {
   const superClassNames = [];
-  const enclosingMethodStatuses = [];
   traverse(ast, {
     CallExpression (path) {
-      handleCallExpression(
-        path, superClassNames[superClassNames.length - 1],
-        enclosingMethodStatuses[enclosingMethodStatuses.length - 1]);
+      handleCallExpression(path);
     },
-    PrivateName (path) {
-      path.replaceWith(path.node.id);
-      path.node.name = '_PRIVATE_' + path.node.name;
+    PrivateName: {
+      enter (path) {
+        path.replaceWith(path.node.id);
+        path.node.name = '_PRIVATE_' + path.node.name;
+      }
+    },
+    ClassPrivateMethod (path) {
+      handlePrivateProperty(path, "ClassMethod");
+    },
+    ClassPrivateProperty (path) {
+      handlePrivateProperty(path, "ClassProperty");
     },
     ClassDeclaration: {
       exit (path) {
-        superClassNames.pop();
-      },
-      enter (path) {
         let className, superClassName, classBodyNodes;
         const classNode = path.node;
         if (classNode.id.type === 'Identifier') {
@@ -172,7 +192,6 @@ const transformClass = (ast) => {
         if (classNode.superClass &&
           classNode.superClass.type === 'Identifier') {
           superClassName = classNode.superClass.name;
-          superClassNames.push(superClassName);
         }
         if (classNode.body.type === 'ClassBody') {
           classBodyNodes = classNode.body.body;
@@ -181,19 +200,6 @@ const transformClass = (ast) => {
         let constructorFound = false;
         for (const classBodyNode of classBodyNodes) {
           let templateAST;
-          // Convert private methods and fields to public methods
-          // and fields  with a `_PRIVATE_` prefix.
-          if (classBodyNode.type === 'ClassPrivateMethod' ||
-            classBodyNode.type === 'ClassPrivateProperty') {
-            classBodyNode.type =
-              {
-                ClassPrivateMethod: 'ClassMethod',
-                ClassPrivateProperty: 'ClassProperty'
-              }[classBodyNode.type];
-            classBodyNode.key.type = 'Identifier';
-            classBodyNode.key.name = '_PRIVATE_' + classBodyNode.key.id.name;
-            classBodyNode.key.id = undefined;
-          }
           // Convert methods and fields declarations to separable
           // assignment statements.
           if (classBodyNode.type === 'ClassMethod') {
