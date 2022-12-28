@@ -135,19 +135,18 @@ const handleMemberExpression = (path) => {
     const enclosure = getEnclosingProperty(path) ?? getEnclosingMethod(path);
     const isStatic = enclosure.node.static;
     const superClassName = getEnclosingSuperClassName(path);
-    ast = template.ast(isStatic ? `${superClassName}.${propertyName}` : `undefined`);
+    ast = template.ast(isStatic ? `${superClassName}.${propertyName}` : 'undefined');
   } else {
     return;
   }
   path.replaceWith(ast);
 };
 
-
 // Convert private methods and fields to public methods
 // and fields  with a `_PRIVATE_` prefix.
 const handlePrivateProperty = (path, propertyType) => {
   path.node.type = propertyType;
-  path.node.key.type = "Identifier";
+  path.node.key.type = 'Identifier';
   path.node.key.name = '_PRIVATE_' + path.node.key.id.name;
   path.node.key.id = undefined;
 };
@@ -182,7 +181,6 @@ const handlePrivateProperty = (path, propertyType) => {
 // See also: good stuff at
 // https://github.com/AMorgaut/babel-plugin-transform-class/blob/master/src/index.js
 const transformClass = (ast) => {
-  const superClassNames = [];
   traverse(ast, {
     CallExpression (path) {
       handleCallExpression(path);
@@ -197,10 +195,10 @@ const transformClass = (ast) => {
       }
     },
     ClassPrivateMethod (path) {
-      handlePrivateProperty(path, "ClassMethod");
+      handlePrivateProperty(path, 'ClassMethod');
     },
     ClassPrivateProperty (path) {
-      handlePrivateProperty(path, "ClassProperty");
+      handlePrivateProperty(path, 'ClassProperty');
     },
     ClassDeclaration: {
       exit (path) {
