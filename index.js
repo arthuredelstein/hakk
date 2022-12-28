@@ -274,10 +274,10 @@ const transformClass = (ast) => {
           outputNodes.unshift(constructorAST);
         }
         if (superClassName !== undefined) {
-          const inheritAST = template.ast(
-            `Reflect.setPrototypeOf(${className}.prototype, ${superClassName}.prototype);`
-          );
-          outputNodes.unshift(inheritAST);
+          outputNodes.unshift(template.ast(
+            `Reflect.setPrototypeOf(${className}, ${superClassName});`));
+          outputNodes.unshift(template.ast(
+            `Reflect.setPrototypeOf(${className}.prototype, ${superClassName}.prototype);`));
         }
         // Delegate this class's constructor to `this._CONSTRUCTOR_` so
         // that user can replace it dynamically.
