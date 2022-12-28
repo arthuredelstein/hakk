@@ -135,7 +135,7 @@ const handleMemberExpression = (path) => {
     const enclosure = getEnclosingProperty(path) ?? getEnclosingMethod(path);
     const isStatic = enclosure.node.static;
     const superClassName = getEnclosingSuperClassName(path);
-    ast = template.ast(`${superClassName}${isStatic ? '' : '.prototype'}.${propertyName};`);
+    ast = template.ast(isStatic ? `${superClassName}.${propertyName}` : `undefined`);
   } else {
     return;
   }
