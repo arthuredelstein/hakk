@@ -106,6 +106,8 @@ const getEnclosingSuperClassName = path => getEnclosingClass(path).node.superCla
 
 const getEnclosingMethod = path => path.findParent((path) => path.isMethod());
 
+const getEnclosingProperty = path => path.findParent((path) => path.isProperty());
+
 const handleCallExpression = (path) => {
   let ast;
   if (path.node.callee.type === 'Super') {
@@ -125,6 +127,20 @@ const handleCallExpression = (path) => {
   expressionAST.arguments = expressionAST.arguments.concat(path.node.arguments);
   path.replaceWith(expressionAST);
 };
+
+const handleMemberExpression = (path) => {
+  let ast;
+  if (path.node.object.type === 'Super') {
+    const propertyName = path.node.property.name;
+    const isStatic = getEnclosingProperty(path).node.static;
+    const superClassName = getEnclosingSuperClassName(path);
+    ast = template.ast(`${superClassName}${isStatic ? '' : '.prototype'}.${propertyName};`);
+  } else {
+    return;
+  }
+  path.replaceWith(ast);
+};
+
 
 // Convert private methods and fields to public methods
 // and fields  with a `_PRIVATE_` prefix.
@@ -169,6 +185,9 @@ const transformClass = (ast) => {
   traverse(ast, {
     CallExpression (path) {
       handleCallExpression(path);
+    },
+    MemberExpression (path) {
+      handleMemberExpression(path);
     },
     PrivateName: {
       enter (path) {
