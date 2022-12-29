@@ -129,17 +129,15 @@ const handleCallExpression = (path) => {
 };
 
 const handleMemberExpression = (path) => {
-  let ast;
-  if (path.node.object.type === 'Super') {
-    const propertyName = path.node.property.name;
+  const object = path.node.object;
+  if (object.type === 'Super') {
     const enclosure = getEnclosingProperty(path) ?? getEnclosingMethod(path);
-    const isStatic = enclosure.node.static;
     const superClassName = getEnclosingSuperClassName(path);
-    ast = template.ast(isStatic ? `${superClassName}.${propertyName}` : 'undefined');
-  } else {
-    return;
+    if (enclosure.node.static) {
+      object.type = "Identifier";
+      object.name = superClassName;
+    }
   }
-  path.replaceWith(ast);
 };
 
 // Convert private methods and fields to public methods
