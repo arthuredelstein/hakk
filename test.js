@@ -31,6 +31,9 @@ class MyClass {
   myField = 0;
   static myStaticField = 3;
   uninitializedField = 7;
+  static sum(a,b) {
+    return a+b;
+  }
   #privateField = 11;
   #privateMethod() { return 13; }
   reveal() { return this.#privateField + this.#privateMethod(); }
