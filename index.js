@@ -258,18 +258,15 @@ const transformClass = (ast) => {
             outputNodes.push(templateAST);
           }
         }
-        // Create a constructor delegate if there wasn't one
-        // already explicitly declared. If a superclass exists,
-        // we need to call that constructor.
-        if (!constructorFound) {
-          const constructorAST = template.ast(
-            superClassName === undefined
-              ? `${className}.prototype._CONSTRUCTOR_ = function () {};`
-              : `${className}.prototype._CONSTRUCTOR_ = ${superClassName}.prototype._CONSTRUCTOR_;`
-          );
-          outputNodes.unshift(constructorAST);
-        }
-        if (superClassName !== undefined) {
+        if (superClassName === undefined) {
+          // Create a constructor delegate if there wasn't one
+          // already explicitly declared and there's no superclas.
+          if (!constructorFound) {
+            const constructorAST = template.ast(
+              `${className}.prototype._CONSTRUCTOR_ = function () {};`);
+            outputNodes.unshift(constructorAST);
+          }
+        } else {
           outputNodes.unshift(template.ast(
             `Object.setPrototypeOf(${className}, ${superClassName});`));
           outputNodes.unshift(template.ast(
