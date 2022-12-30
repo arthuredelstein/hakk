@@ -6,9 +6,11 @@ const path = require('node:path');
 const repl = require('node:repl');
 const template = require('@babel/template').default;
 const traverse = require('@babel/traverse').default;
+const types = require('@babel/types');
 const hoistVariables = require('@babel/helper-hoist-variables').default;
 const { createHash } = require('node:crypto');
 const homedir = require('os').homedir();
+const staticBlockPlugin = require('@babel/plugin-proposal-class-static-block').default;
 
 // ## Utility functions
 
@@ -295,6 +297,15 @@ const transformSuper = (ast) => {
   return ast;
 };
 
+
+const staticBlockVisitor = staticBlockPlugin({
+  types, template, assertVersion: () => undefined}).visitor;
+
+const transformStaticBlock = (ast) => {
+  traverse(ast, staticBlockVisitor);
+  return ast;
+};
+
 // TODO:
 // `Extends` and `super` using https://stackoverflow.com/questions/15192722/javascript-extending-class
 
@@ -358,9 +369,10 @@ const prepare = (code) => {
   const result = generate(
     treeWithTopLevelDeclarationsMutable(
       transformClass(
-        transformSuper(
-          transformImport(
-            parse(code)))))).code;
+        transformStaticBlock(
+          transformSuper(
+            transformImport(
+              parse(code))))))).code;
   return result;
 };
 
