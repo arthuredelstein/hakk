@@ -136,6 +136,9 @@ const handleMemberExpression = (path) => {
     if (enclosure.node.static) {
       object.type = "Identifier";
       object.name = superClassName;
+    } else {
+      path.replaceWith(template.ast('undefined'));
+//      throw new Error("super found in the wrong place!");
     }
   }
 };
@@ -180,12 +183,6 @@ const handlePrivateProperty = (path, propertyType) => {
 // https://github.com/AMorgaut/babel-plugin-transform-class/blob/master/src/index.js
 const transformClass = (ast) => {
   traverse(ast, {
-    CallExpression (path) {
-      handleCallExpression(path);
-    },
-    MemberExpression (path) {
-      handleMemberExpression(path);
-    },
     PrivateName: {
       enter (path) {
         path.replaceWith(path.node.id);
@@ -285,6 +282,19 @@ const transformClass = (ast) => {
   return ast;
 };
 
+
+const transformSuper = (ast) => {
+  traverse(ast, {
+    CallExpression (path) {
+      handleCallExpression(path);
+    },
+    MemberExpression (path) {
+      handleMemberExpression(path);
+    }
+  });
+  return ast;
+};
+
 // TODO:
 // `Extends` and `super` using https://stackoverflow.com/questions/15192722/javascript-extending-class
 
@@ -348,8 +358,9 @@ const prepare = (code) => {
   const result = generate(
     treeWithTopLevelDeclarationsMutable(
       transformClass(
-        transformImport(
-          parse(code))))).code;
+        transformSuper(
+          transformImport(
+            parse(code)))))).code;
   return result;
 };
 
