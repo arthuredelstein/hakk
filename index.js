@@ -9,6 +9,7 @@ const traverse = require('@babel/traverse').default;
 const types = require('@babel/types');
 const hoistVariables = require('@babel/helper-hoist-variables').default;
 const { createHash } = require('node:crypto');
+const { replaceExpressionWithStatements } = require('@babel/traverse/lib/path/replacement');
 const homedir = require('os').homedir();
 const staticBlockPlugin = require('@babel/plugin-proposal-class-static-block').default;
 
@@ -38,15 +39,15 @@ const sha256 = (text) =>
 
 // ## AST transformation visitors
 
-const programVisitor = {
-  Program (path) {
-    const topLevelNodes = path.node.body;
-    for (const node of topLevelNodes) {
-      if (node.type === 'VariableDeclaration') {
-        if (node.kind === 'const' || node.kind === 'let') {
-          node.kind = 'var';
-        }
-      }
+const varVisitor = {
+  VariableDeclaration (path) {
+    if (!types.isProgram(path.parentPath)) {
+      return;
+    }
+    if (path.node.kind !== 'var' || path.node.declarations.length > 1) {
+      const outputNodes = path.node.declarations.map(
+        d => types.variableDeclaration("var", [d]));
+      path.replaceWithMultiple(outputNodes);
     }
   }
 };
@@ -362,6 +363,8 @@ const objectVisitor = {
           expressionRight.async = property.async;
           expressionRight.generator = property.generator;
           expressionRight.body = property.body;
+        } else {
+          throw new Error("Unexpected key type ${key.type}");
         }
       } else {
         throw new Error("Unexpected object member ${propety.type}.");
@@ -442,9 +445,10 @@ const prepare = (code) => {
     return '\n';
   }
   let ast = parse(code);
+  //console.log(varVisitor.VariableDeclaration.toString());
   ast = transform(
     ast, [importVisitor, superVisitor, staticBlockVisitor,
-          objectVisitor, classVisitor, programVisitor]);
+          objectVisitor, classVisitor, varVisitor]);
   return generate(ast).code;
 };
 
