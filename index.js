@@ -196,6 +196,10 @@ const classVisitor = {
   },
   ClassDeclaration: {
     exit (path) {
+      // Only do top-level class declarations.
+      if (!types.isProgram(path.parentPath)) {
+        return;
+      }
       let className, superClassName, classBodyNodes;
       const classNode = path.node;
       if (classNode.id.type === 'Identifier') {
