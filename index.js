@@ -376,6 +376,15 @@ const prepare = (code) => {
   return result;
 };
 
+// Returns true if the inputted code is incomplete.
+const incompleteCode = (code, e) =>
+  e &&
+  e.code === "BABEL_PARSER_SYNTAX_ERROR" &&
+  e.reasonCode === "UnexpectedToken" &&
+  e.loc &&
+  e.loc.index === code.length &&
+  code[code.length - 1] === '\n';
+
 const useEvalWithCodeModifications = (replServer, modifierFunction) => {
   const originalEval = replServer.eval;
   const newEval = (code, context, filename, callback) => {
