@@ -152,6 +152,82 @@ const handlePrivateProperty = (path, propertyType) => {
   path.node.key.id = undefined;
 };
 
+
+const isTopLevelDeclaredObject = (path) =>
+  types.isVariableDeclarator(path.parentPath) &&
+  types.isVariableDeclaration(path.parentPath.parentPath) &&
+  types.isProgram(path.parentPath.parentPath.parentPath);
+
+const nodesForClass = ({classNode, className, superClassName, classBodyNodes}) => {
+  const outputNodes = [];
+  let constructorFound = false;
+  for (const classBodyNode of classBodyNodes) {
+    let templateAST;
+    // Convert methods and fields declarations to separable
+    // assignment statements.
+    if (classBodyNode.type === 'ClassMethod') {
+      let fun;
+      if (classBodyNode.kind === 'constructor') {
+        constructorFound = true;
+        templateAST = template.ast(
+          `${className}.prototype._CONSTRUCTOR_ = function () { }`);
+        fun = templateAST.expression.right;
+      } else if (classBodyNode.kind === 'method') {
+        templateAST = template.ast(
+          `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = ${classBodyNode.async ? 'async ' : ''}function${classBodyNode.generator ? '*' : ''} () {}`
+        );
+        fun = templateAST.expression.right;
+      } else if (classBodyNode.kind === 'get' ||
+                 classBodyNode.kind === 'set') {
+        templateAST = template.ast(
+          `Object.defineProperty(${className}.prototype, "${classBodyNode.key.name}", {
+             ${classBodyNode.kind}: function () { },
+             configurable: true
+           });`
+        );
+        fun = templateAST.expression.arguments[2].properties[0].value;
+      } else {
+        throw new Error(`Unexpected ClassMethod kind ${classBodyNode.kind}`);
+      }
+      fun.body = classBodyNode.body;
+      fun.params = classBodyNode.params;
+    } else if (classBodyNode.type === 'ClassProperty') {
+      templateAST = template.ast(
+        `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = undefined;`
+      );
+      if (classBodyNode.value !== null) {
+        templateAST.expression.right = classBodyNode.value;
+      }
+    } else {
+      throw new Error(`Unexpected ClassBody node type ${classBodyNode.type}`);
+    }
+    if (templateAST !== undefined) {
+      outputNodes.push(templateAST);
+    }
+  }
+  if (superClassName === undefined) {
+    // Create a constructor delegate if there wasn't one
+    // already explicitly declared and there's no superclas.
+    if (!constructorFound) {
+      const constructorAST = template.ast(
+        `${className}.prototype._CONSTRUCTOR_ = function () {};`);
+      outputNodes.unshift(constructorAST);
+    }
+  } else {
+    outputNodes.unshift(template.ast(
+      `Object.setPrototypeOf(${className}, ${superClassName});`));
+    outputNodes.unshift(template.ast(
+      `Object.setPrototypeOf(${className}.prototype, ${superClassName}.prototype);`));
+  }
+  // Delegate this class's constructor to `this._CONSTRUCTOR_` so
+  // that user can replace it dynamically.
+  const declarationAST = template.ast(
+    `var ${className} = function (...args) { this._CONSTRUCTOR_(...args); }`
+  );
+  outputNodes.unshift(declarationAST);
+  return outputNodes;
+};
+
 // Make class declarations mutable by transforming to prototype
 // construction.
 //
@@ -194,6 +270,28 @@ const classVisitor = {
   ClassPrivateProperty (path) {
     handlePrivateProperty(path, 'ClassProperty');
   },
+  ClassExpression: {
+    exit (path) {
+      // Only do top-level class variable declarations.
+      if (!isTopLevelDeclaredObject(path)) {
+        return;
+      }
+      const classNode = path.node;
+      let className, superClassName, classBodyNodes;
+      if (types.isVariableDeclarator(path.parentPath)) {
+        className = path.parentPath.node.id.name;
+      }
+      if (types.isClassBody(classNode.body)) {
+        classBodyNodes = classNode.body.body;
+      }
+      if (classNode.superClass &&
+        types.isIdentifier(classNode.superClass)) {
+        superClassName = classNode.superClass.name;
+      }
+      const outputNodes = nodesForClass({classNode, className, superClassName, classBodyNodes});
+      path.parentPath.parentPath.replaceWithMultiple(outputNodes);
+    }
+  },
   ClassDeclaration: {
     exit (path) {
       // Only do top-level class declarations.
@@ -212,72 +310,7 @@ const classVisitor = {
       if (classNode.body.type === 'ClassBody') {
         classBodyNodes = classNode.body.body;
       }
-      const outputNodes = [];
-      let constructorFound = false;
-      for (const classBodyNode of classBodyNodes) {
-        let templateAST;
-        // Convert methods and fields declarations to separable
-        // assignment statements.
-        if (classBodyNode.type === 'ClassMethod') {
-          let fun;
-          if (classBodyNode.kind === 'constructor') {
-            constructorFound = true;
-            templateAST = template.ast(
-              `${className}.prototype._CONSTRUCTOR_ = function () { }`);
-            fun = templateAST.expression.right;
-          } else if (classBodyNode.kind === 'method') {
-            templateAST = template.ast(
-              `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = ${classBodyNode.async ? 'async ' : ''}function${classBodyNode.generator ? '*' : ''} () {}`
-            );
-            fun = templateAST.expression.right;
-          } else if (classBodyNode.kind === 'get' ||
-                     classBodyNode.kind === 'set') {
-            templateAST = template.ast(
-              `Object.defineProperty(${className}.prototype, "${classBodyNode.key.name}", {
-                 ${classBodyNode.kind}: function () { },
-                 configurable: true
-               });`
-            );
-            fun = templateAST.expression.arguments[2].properties[0].value;
-          } else {
-            throw new Error(`Unexpected ClassMethod kind ${classBodyNode.kind}`);
-          }
-          fun.body = classBodyNode.body;
-          fun.params = classBodyNode.params;
-        } else if (classBodyNode.type === 'ClassProperty') {
-          templateAST = template.ast(
-            `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = undefined;`
-          );
-          if (classBodyNode.value !== null) {
-            templateAST.expression.right = classBodyNode.value;
-          }
-        } else {
-          throw new Error(`Unexpected ClassBody node type ${classBodyNode.type}`);
-        }
-        if (templateAST !== undefined) {
-          outputNodes.push(templateAST);
-        }
-      }
-      if (superClassName === undefined) {
-        // Create a constructor delegate if there wasn't one
-        // already explicitly declared and there's no superclas.
-        if (!constructorFound) {
-          const constructorAST = template.ast(
-            `${className}.prototype._CONSTRUCTOR_ = function () {};`);
-          outputNodes.unshift(constructorAST);
-        }
-      } else {
-        outputNodes.unshift(template.ast(
-          `Object.setPrototypeOf(${className}, ${superClassName});`));
-        outputNodes.unshift(template.ast(
-          `Object.setPrototypeOf(${className}.prototype, ${superClassName}.prototype);`));
-      }
-      // Delegate this class's constructor to `this._CONSTRUCTOR_` so
-      // that user can replace it dynamically.
-      const declarationAST = template.ast(
-        `var ${className} = function (...args) { this._CONSTRUCTOR_(...args); }`
-      );
-      outputNodes.unshift(declarationAST);
+      const outputNodes = nodesForClass({classNode, className, superClassName, classBodyNodes});
       path.replaceWithMultiple(outputNodes);
     }
   }
@@ -296,10 +329,6 @@ const staticBlockVisitor = staticBlockPlugin({
   types, template, assertVersion: () => undefined}).visitor;
 
 
-const isTopLevelDeclaredObject = (path) =>
-  types.isVariableDeclarator(path.parentPath) &&
-  types.isVariableDeclaration(path.parentPath.parentPath) &&
-  types.isProgram(path.parentPath.parentPath.parentPath);
 
 const objectVisitor = {
   ObjectExpression (path) {
