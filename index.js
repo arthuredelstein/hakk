@@ -292,6 +292,50 @@ const staticBlockVisitor = staticBlockPlugin({
   types, template, assertVersion: () => undefined}).visitor;
 
 
+const isTopLevelDeclaredObject = (path) =>
+  types.isVariableDeclarator(path.parentPath) &&
+  types.isVariableDeclaration(path.parentPath.parentPath) &&
+  types.isProgram(path.parentPath.parentPath.parentPath);
+
+const objectVisitor = {
+  ObjectExpression (path) {
+    if (!isTopLevelDeclaredObject(path)) {
+      return;
+    }
+    const originalProperties = path.node.properties;
+    path.node.properties = [];
+    const name = path.parentPath.node.id.name;
+    let outputASTs = [];
+    for (const property of originalProperties) {
+      let ast;
+      if (types.isObjectProperty(property)) {
+        const key = property.key;
+        if (types.isIdentifier(key)) {
+          ast = template.ast(`${name}.${key.name} = undefined;`);
+        }
+        if (types.isStringLiteral(key)) {
+          ast = template.ast(`${name}['${key.value}'] = undefined;`);
+        }
+        ast.expression.right = property.value;
+      } else if (types.isObjectMethod(property)) {
+        const key = property.key;
+        if (types.isIdentifier(key)) {
+          ast = template.ast(`${name}.${key.name} = function () { };`);
+          const expressionRight = ast.expression.right;
+          expressionRight.params = property.params;
+          expressionRight.async = property.async;
+          expressionRight.generator = property.generator;
+          expressionRight.body = property.body;
+        }
+      }
+      outputASTs.push(ast);
+    }
+    for (let outputAST of outputASTs.reverse()) {
+      path.parentPath.parentPath.insertAfter(outputAST);
+    }
+  }
+};
+
 // TODO:
 // `Extends` and `super` using https://stackoverflow.com/questions/15192722/javascript-extending-class
 
@@ -362,7 +406,7 @@ const prepare = (code) => {
   let ast = parse(code);
   ast = transform(
     ast, [importVisitor, superVisitor, staticBlockVisitor,
-          classVisitor, programVisitor]);
+          objectVisitor, classVisitor, programVisitor]);
   return generate(ast).code;
 };
 
