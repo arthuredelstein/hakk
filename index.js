@@ -327,6 +327,8 @@ const objectVisitor = {
           expressionRight.generator = property.generator;
           expressionRight.body = property.body;
         }
+      } else {
+        throw new Error("Unexpected object member ${propety.type}.");
       }
       outputASTs.push(ast);
     }
