@@ -158,7 +158,7 @@ const isTopLevelDeclaredObject = (path) =>
   types.isVariableDeclaration(path.parentPath.parentPath) &&
   types.isProgram(path.parentPath.parentPath.parentPath);
 
-const nodesForClass = ({classNode, className, superClassName, classBodyNodes}) => {
+const nodesForClass = ({classNode, className, superClassName, classBodyNodes, classInternalName}) => {
   const outputNodes = [];
   let constructorFound = false;
   for (const classBodyNode of classBodyNodes) {
@@ -222,7 +222,7 @@ const nodesForClass = ({classNode, className, superClassName, classBodyNodes}) =
   // Delegate this class's constructor to `this._CONSTRUCTOR_` so
   // that user can replace it dynamically.
   const declarationAST = template.ast(
-    `var ${className} = function (...args) { this._CONSTRUCTOR_(...args); }`
+    `var ${className} = function ${classInternalName ?? ''}(...args) { this._CONSTRUCTOR_(...args); }`
   );
   outputNodes.unshift(declarationAST);
   return outputNodes;
@@ -277,7 +277,7 @@ const classVisitor = {
         return;
       }
       const classNode = path.node;
-      let className, superClassName, classBodyNodes;
+      let className, superClassName, classBodyNodes, classInternalName;
       if (types.isVariableDeclarator(path.parentPath)) {
         className = path.parentPath.node.id.name;
       }
@@ -288,7 +288,10 @@ const classVisitor = {
         types.isIdentifier(classNode.superClass)) {
         superClassName = classNode.superClass.name;
       }
-      const outputNodes = nodesForClass({classNode, className, superClassName, classBodyNodes});
+      if (classNode.id) {
+        classInternalName = classNode.id.name;
+      }
+      const outputNodes = nodesForClass({classNode, className, superClassName, classBodyNodes, classInternalName});
       path.parentPath.parentPath.replaceWithMultiple(outputNodes);
     }
   },
