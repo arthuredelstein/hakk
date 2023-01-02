@@ -48,6 +48,10 @@ const varVisitor = {
         d => types.variableDeclaration('var', [d]));
       path.replaceWithMultiple(outputNodes);
     }
+    if (path.node && path.node.kind === 'var' && path.node.declarations.length === 1) {
+      const varName = path.node.declarations[0].id.name;
+      path.node._removeCode = `${varName} = undefined;`;
+    }
   }
 };
 
@@ -122,7 +126,7 @@ const handleCallExpression = (path) => {
   if (!methodPath || methodPath.kind === 'constructor') {
     return;
   }
-  // if (!isTopLevelDeclaredObject(getEnclosingClass(path))) {
+  // if (TODO: !isTopLevelDeclaredObject(getEnclosingClass(path))) {
   //  return;
   // }
   const methodName = path.node.callee.property.name;
@@ -137,7 +141,7 @@ const handleCallExpression = (path) => {
 const handleMemberExpression = (path) => {
   const object = path.node.object;
   if (object.type !== 'Super') { // ||
-    //  !isTopLevelDeclaredObject(getEnclosingClass(path))) {
+    // TODO: !isTopLevelDeclaredObject(getEnclosingClass(path))) {
     return;
   }
   const enclosure = getEnclosingProperty(path) ?? getEnclosingMethod(path);
@@ -176,6 +180,7 @@ const nodesForClass = ({ className, classBodyNodes }) => {
         const fun = templateAST.expression.right;
         fun.body = classBodyNode.body;
         fun.params = classBodyNode.params;
+        templateAST._removeCode = `if (${className} && ${className}.prototype) { delete ${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} };`;
       } else if (classBodyNode.kind === 'get' ||
                  classBodyNode.kind === 'set') {
         templateAST = template.ast(
@@ -187,6 +192,7 @@ const nodesForClass = ({ className, classBodyNodes }) => {
         const fun = templateAST.expression.arguments[2].properties[0].value;
         fun.body = classBodyNode.body;
         fun.params = classBodyNode.params;
+        templateAST
       } else {
         throw new Error(`Unexpected ClassMethod kind ${classBodyNode.kind}`);
       }
@@ -197,6 +203,7 @@ const nodesForClass = ({ className, classBodyNodes }) => {
       if (classBodyNode.value !== null) {
         templateAST.expression.right = classBodyNode.value;
       }
+      templateAST._removeCode = `delete ${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name}`;
     } else {
       throw new Error(`Unexpected ClassBody node type ${classBodyNode.type}`);
     }
@@ -337,40 +344,50 @@ const hoistTopLevelVars = (ast) => {
   return ast;
 };
 
-let previousFragments = new Set();
+let previousNodes = new Map();
+
+const changedNodesToCodeFragments = (nodes) => {
+  const toWrite = [];
+  const toRemove = [];
+  const currentNodes = new Map();
+  const updatedParentFragments = new Set();
+  for (const node of nodes) {
+    const fragment = generate(node, { comments: false }, '').code.trim();
+    currentNodes.set(fragment, node);
+    if (previousNodes.has(fragment) &&
+        !(node.parentFragmentLabel &&
+          updatedParentFragments.has(node.parentFragmentLabel))) {
+      previousNodes.delete(fragment);
+    } else {
+      if (node.fragmentLabel) {
+        updatedParentFragments.add(node.fragmentLabel);
+      }
+      toWrite.push(fragment);
+    }
+  }
+  // Removal code for previousNodes that haven't been found in new file version.
+  for (const [fragment, node] of previousNodes.entries()) {
+    if (node._removeCode) {
+      toRemove.push(node._removeCode);
+    }
+  }
+  previousNodes = currentNodes;
+  return [].concat(toRemove, toWrite);
+}
 
 const evaluateChangedCodeFragments = async (replServer, ast, filename) => {
-  try {
-    const newFragments = new Set();
-    const updatedParentFragments = new Set();
-    for (const node of ast.program.body) {
-      // Remove trailing comments because they are redundant.
-      node.trailingComments = undefined;
-      const fragment = generate(node, {}, '').code;
-      newFragments.add(fragment);
-      if (previousFragments.has(fragment) &&
-          !updatedParentFragments.has(node.parentFragmentLabel)) {
-        previousFragments.delete(fragment);
-      } else {
-        updatedParentFragments.add(node.fragmentLabel);
-        await new Promise((resolve, reject) => {
-          replServer.eval(fragment, replServer.context, filename,
-            (err, result) => {
-              if (err) {
-                reject(err);
-              } else {
-                resolve(result);
-              }
-            });
+  const fragments = changedNodesToCodeFragments(ast.program.body);
+  for (const fragment of fragments) {
+    await new Promise((resolve, reject) => {
+      replServer.eval(fragment, replServer.context, filename,
+        (err, result) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(result);
+          }
         });
-      }
-    }
-    // for (const fragment of previousFragments) {
-    // TODO: remove old fragment
-    // }
-    previousFragments = newFragments;
-  } catch (e) {
-    console.log(e);
+    });
   }
 };
 
