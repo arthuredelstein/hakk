@@ -122,9 +122,9 @@ const handleCallExpression = (path) => {
   if (!methodPath || methodPath.kind === 'constructor') {
     return;
   }
-  if (!isTopLevelDeclaredObject(getEnclosingClass(path))) {
-    return;
-  }
+  //if (!isTopLevelDeclaredObject(getEnclosingClass(path))) {
+  //  return;
+  //}
   const methodName = path.node.callee.property.name;
   const isStatic = methodPath.node.static;
   const superClassName = getEnclosingSuperClassName(path);
@@ -136,8 +136,8 @@ const handleCallExpression = (path) => {
 
 const handleMemberExpression = (path) => {
   const object = path.node.object;
-  if (object.type !== 'Super' ||
-      !isTopLevelDeclaredObject(getEnclosingClass(path))) {
+  if (object.type !== 'Super') { // ||
+    //  !isTopLevelDeclaredObject(getEnclosingClass(path))) {
     return;
   }
   const enclosure = getEnclosingProperty(path) ?? getEnclosingMethod(path);
@@ -146,8 +146,8 @@ const handleMemberExpression = (path) => {
     object.type = 'Identifier';
     object.name = superClassName;
   } else {
-    // path.replaceWith(template.ast('undefined'));
-    throw new Error('super found in the wrong place!');
+    path.replaceWith(template.ast('undefined'));
+    //throw new Error('super found in the wrong place!');
   }
 };
 
