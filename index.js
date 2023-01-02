@@ -180,11 +180,12 @@ const nodesForClass = ({ className, classBodyNodes }) => {
         const fun = templateAST.expression.right;
         fun.body = classBodyNode.body;
         fun.params = classBodyNode.params;
-        templateAST._removeCode = `if (${className} && ${className}.prototype) { delete ${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} };`;
+        templateAST._removeCode = `if (${className}) { delete ${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} };`;
       } else if (classBodyNode.kind === 'get' ||
                  classBodyNode.kind === 'set') {
+        const keyName = classBodyNode.key.name;
         templateAST = template.ast(
-          `Object.defineProperty(${className}.prototype, "${classBodyNode.key.name}", {
+          `Object.defineProperty(${className}.prototype, "${keyName}", {
              ${classBodyNode.kind}: function () { },
              configurable: true
            });`
@@ -192,7 +193,13 @@ const nodesForClass = ({ className, classBodyNodes }) => {
         const fun = templateAST.expression.arguments[2].properties[0].value;
         fun.body = classBodyNode.body;
         fun.params = classBodyNode.params;
-        templateAST
+        const getter = classBodyNode.kind === 'get';
+        templateAST._removeCode = `Object.defineProperty(${className}.prototype, "${keyName}", {
+          ${classBodyNode.kind}: function (${getter ? "" : 'value'}) {
+            return this._PROPERTY_${keyName} ${getter ? "" : "= value" };
+          },
+          configurable: true
+        });`
       } else {
         throw new Error(`Unexpected ClassMethod kind ${classBodyNode.kind}`);
       }
@@ -203,7 +210,7 @@ const nodesForClass = ({ className, classBodyNodes }) => {
       if (classBodyNode.value !== null) {
         templateAST.expression.right = classBodyNode.value;
       }
-      templateAST._removeCode = `delete ${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name}`;
+      templateAST._removeCode = `if (${className} { delete ${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} }`;
     } else {
       throw new Error(`Unexpected ClassBody node type ${classBodyNode.type}`);
     }
