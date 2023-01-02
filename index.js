@@ -110,20 +110,18 @@ const getEnclosingMethod = path => path.findParent((path) => path.isMethod());
 const getEnclosingProperty = path => path.findParent((path) => path.isProperty());
 
 const handleCallExpression = (path) => {
-  let ast;
-  if (path.node.callee.type === 'Super') {
-    const superClassName = getEnclosingSuperClassName(path);
-    ast = template.ast(`${superClassName}.prototype._CONSTRUCTOR_.call(this)`);
-  } else if (path.node.callee.type === 'MemberExpression' &&
-             path.node.callee.object.type === 'Super') {
-    const methodName = path.node.callee.property.name;
-    const methodPath = getEnclosingMethod(path);
-    const isStatic = methodPath.node.static;
-    const superClassName = getEnclosingSuperClassName(path);
-    ast = template.ast(`${superClassName}${isStatic ? '' : '.prototype'}.${methodName}.call(${isStatic ? '' : 'this'})`);
-  } else {
+  if (path.node.callee.type !== 'MemberExpression' ||
+      path.node.callee.object.type !== 'Super') {
     return;
   }
+  const methodPath = getEnclosingMethod(path);
+  if (!methodPath || methodPath.kind === "constructor") {
+    return;
+  }
+  const methodName = path.node.callee.property.name;
+  const isStatic = methodPath.node.static;
+  const superClassName = getEnclosingSuperClassName(path);
+  const ast = template.ast(`${superClassName}${isStatic ? '' : '.prototype'}.${methodName}.call(${isStatic ? '' : 'this'})`);
   const expressionAST = ast.expression;
   expressionAST.arguments = expressionAST.arguments.concat(path.node.arguments);
   path.replaceWith(expressionAST);
@@ -138,8 +136,8 @@ const handleMemberExpression = (path) => {
       object.type = "Identifier";
       object.name = superClassName;
     } else {
-      path.replaceWith(template.ast('undefined'));
-//      throw new Error("super found in the wrong place!");
+     // path.replaceWith(template.ast('undefined'));
+      throw new Error("super found in the wrong place!");
     }
   }
 };
@@ -158,25 +156,22 @@ const isTopLevelDeclaredObject = (path) =>
   types.isVariableDeclaration(path.parentPath.parentPath) &&
   types.isProgram(path.parentPath.parentPath.parentPath);
 
-const nodesForClass = ({classNode, className, superClassName, classBodyNodes, classInternalName}) => {
-  const outputNodes = [];
-  let constructorFound = false;
+const nodesForClass = ({className, classBodyNodes}) => {
+  const outputNodes = [], retainedNodes = [];
   for (const classBodyNode of classBodyNodes) {
     let templateAST;
     // Convert methods and fields declarations to separable
     // assignment statements.
     if (classBodyNode.type === 'ClassMethod') {
-      let fun;
       if (classBodyNode.kind === 'constructor') {
-        constructorFound = true;
-        templateAST = template.ast(
-          `${className}.prototype._CONSTRUCTOR_ = function () { }`);
-        fun = templateAST.expression.right;
+        retainedNodes.push(classBodyNode);
       } else if (classBodyNode.kind === 'method') {
         templateAST = template.ast(
           `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = ${classBodyNode.async ? 'async ' : ''}function${classBodyNode.generator ? '*' : ''} () {}`
         );
         fun = templateAST.expression.right;
+        fun.body = classBodyNode.body;
+        fun.params = classBodyNode.params;
       } else if (classBodyNode.kind === 'get' ||
                  classBodyNode.kind === 'set') {
         templateAST = template.ast(
@@ -186,11 +181,11 @@ const nodesForClass = ({classNode, className, superClassName, classBodyNodes, cl
            });`
         );
         fun = templateAST.expression.arguments[2].properties[0].value;
+        fun.body = classBodyNode.body;
+        fun.params = classBodyNode.params;
       } else {
         throw new Error(`Unexpected ClassMethod kind ${classBodyNode.kind}`);
       }
-      fun.body = classBodyNode.body;
-      fun.params = classBodyNode.params;
     } else if (classBodyNode.type === 'ClassProperty') {
       templateAST = template.ast(
         `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = undefined;`
@@ -205,31 +200,12 @@ const nodesForClass = ({classNode, className, superClassName, classBodyNodes, cl
       outputNodes.push(templateAST);
     }
   }
-  if (superClassName === undefined) {
-    // Create a constructor delegate if there wasn't one
-    // already explicitly declared and there's no superclas.
-    if (!constructorFound) {
-      const constructorAST = template.ast(
-        `${className}.prototype._CONSTRUCTOR_ = function () {};`);
-      outputNodes.unshift(constructorAST);
-    }
-  } else {
-    outputNodes.unshift(template.ast(
-      `Object.setPrototypeOf(${className}, ${superClassName});`));
-    outputNodes.unshift(template.ast(
-      `Object.setPrototypeOf(${className}.prototype, ${superClassName}.prototype);`));
-  }
-  // Delegate this class's constructor to `this._CONSTRUCTOR_` so
-  // that user can replace it dynamically.
-  const declarationAST = template.ast(
-    `var ${className} = class ${classInternalName ?? ''} ${superClassName ? "extends " + superClassName : ""} { constructor(...args) { this._CONSTRUCTOR_(...args); } }`
-  );
-  outputNodes.unshift(declarationAST);
-  return outputNodes;
+  return {retainedNodes, outputNodes};
 };
 
-// Make class declarations mutable by transforming to prototype
-// construction.
+// Make class declarations mutable by transforming to class
+// expressions assigned to a var, with member declarations
+// hoisted out of the class body.
 //
 // class A {
 //   constructor() {
@@ -246,7 +222,7 @@ const nodesForClass = ({classNode, className, superClassName, classBodyNodes, cl
 //   }
 // }
 //  ... gets transformed to ...
-// var A = function () { this.q_ = 1; }
+// var A = class A () { constructor() { this.q_ = 1; } }
 // A.prototype.inc = function () { ++this.q_; }
 // Object.defineProperty(A.prototype, "q",
 //   { get: function () { return this.q_; },
@@ -270,31 +246,29 @@ const classVisitor = {
   ClassPrivateProperty (path) {
     handlePrivateProperty(path, 'ClassProperty');
   },
-/*  ClassExpression: {
-    exit (path) {
-      // Only do top-level class variable declarations.
-      if (!isTopLevelDeclaredObject(path)) {
-        return;
-      }
-      const classNode = path.node;
-      let className, superClassName, classBodyNodes, classInternalName;
-      if (types.isVariableDeclarator(path.parentPath)) {
-        className = path.parentPath.node.id.name;
-      }
-      if (types.isClassBody(classNode.body)) {
-        classBodyNodes = classNode.body.body;
-      }
-      if (classNode.superClass &&
-        types.isIdentifier(classNode.superClass)) {
-        superClassName = classNode.superClass.name;
-      }
-      if (classNode.id) {
-        classInternalName = classNode.id.name;
-      }
-      const outputNodes = nodesForClass({classNode, className, superClassName, classBodyNodes, classInternalName});
-      path.parentPath.parentPath.replaceWithMultiple(outputNodes);
+  ClassExpression (path) {
+    // Only do top-level class variable declarations.
+    if (!isTopLevelDeclaredObject(path)) {
+      return;
     }
-  },*/
+    const classNode = path.node;
+    let className, superClassName, classBodyNodes, classInternalName;
+    if (types.isVariableDeclarator(path.parentPath)) {
+      className = path.parentPath.node.id.name;
+    }
+    if (types.isClassBody(classNode.body)) {
+      classBodyNodes = classNode.body.body;
+    }
+    if (classNode.superClass &&
+      types.isIdentifier(classNode.superClass)) {
+      superClassName = classNode.superClass.name;
+    }
+    const {retainedNodes, outputNodes} = nodesForClass({classNode, className, superClassName, classBodyNodes});
+    classNode.body.body = retainedNodes;
+    for (const outputNode of outputNodes) {
+      path.parentPath.parentPath.insertAfter(outputNode);
+    }
+  },
   ClassDeclaration (path) {
     // Only modify top-level class declarations.
     if (!types.isProgram(path.parentPath)) {
