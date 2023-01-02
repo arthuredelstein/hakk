@@ -122,9 +122,9 @@ const handleCallExpression = (path) => {
   if (!methodPath || methodPath.kind === 'constructor') {
     return;
   }
-  //if (!isTopLevelDeclaredObject(getEnclosingClass(path))) {
+  // if (!isTopLevelDeclaredObject(getEnclosingClass(path))) {
   //  return;
-  //}
+  // }
   const methodName = path.node.callee.property.name;
   const isStatic = methodPath.node.static;
   const superClassName = getEnclosingSuperClassName(path);
@@ -147,7 +147,7 @@ const handleMemberExpression = (path) => {
     object.name = superClassName;
   } else {
     path.replaceWith(template.ast('undefined'));
-    //throw new Error('super found in the wrong place!');
+    // throw new Error('super found in the wrong place!');
   }
 };
 
@@ -204,6 +204,7 @@ const nodesForClass = ({ className, classBodyNodes }) => {
       outputNodes.push(templateAST);
     }
   }
+  outputNodes.map(outputNode => outputNode.parentFragmentLabel = className);
   return { retainedNodes, outputNodes };
 };
 
@@ -239,6 +240,7 @@ const classVisitor = {
     const { retainedNodes, outputNodes } = nodesForClass(
       { classNode, className, classBodyNodes });
     classNode.body.body = retainedNodes;
+    path.parentPath.parentPath.node.fragmentLabel = className;
     for (const outputNode of outputNodes) {
       path.parentPath.parentPath.insertAfter(outputNode);
     }
@@ -337,18 +339,20 @@ const hoistTopLevelVars = (ast) => {
 
 let previousFragments = new Set();
 
-const evaluateChangedCodeFragments = async (replServer, code, filename) => {
+const evaluateChangedCodeFragments = async (replServer, ast, filename) => {
   try {
-    const tree = parse(code);
     const newFragments = new Set();
-    for (const node of tree.program.body) {
+    const updatedParentFragments = new Set();
+    for (const node of ast.program.body) {
       // Remove trailing comments because they are redundant.
       node.trailingComments = undefined;
       const fragment = generate(node, {}, '').code;
       newFragments.add(fragment);
-      if (previousFragments.has(fragment)) {
+      if (previousFragments.has(fragment) &&
+          !updatedParentFragments.has(node.parentFragmentLabel)) {
         previousFragments.delete(fragment);
       } else {
+        updatedParentFragments.add(node.fragmentLabel);
         await new Promise((resolve, reject) => {
           replServer.eval(fragment, replServer.context, filename,
             (err, result) => {
@@ -377,16 +381,15 @@ const transform = (ast, visitors) => {
   return ast;
 };
 
-const prepare = (code) => {
+const prepareAST = (code) => {
   if (code.trim().length === 0) {
     return '\n';
   }
   let ast = parse(code);
   // console.log(varVisitor.VariableDeclaration.toString());
-  ast = transform(
+  return transform(
     ast, [importVisitor, superVisitor, staticBlockVisitor,
       objectVisitor, classVisitor, varVisitor]);
-  return generate(ast).code;
 };
 
 // Returns true if the inputted code is incomplete.
@@ -417,20 +420,23 @@ const run = async (filename) => {
   const historyDir = path.join(homedir, '.hakk', 'history');
   fs.mkdirSync(historyDir, { recursive: true });
   await new Promise(resolve => replServer.setupHistory(path.join(historyDir, sha256(filenameFullPath)), resolve));
-  useEvalWithCodeModifications(replServer, prepare);
+  // Transform user input before evaluation.
+  useEvalWithCodeModifications(replServer, code => generate(prepareAST(code)).code);
   const setGlobalsCommand = `
     __filename = '${filenameFullPath}';
     __dirname = '${path.dirname(filenameFullPath)}';
     let exports = {};
     var _IMPORT_ = { meta: ''};
   `;
-  evaluateChangedCodeFragments(replServer, setGlobalsCommand);
+  // Prepare the repl for a source file.
+  evaluateChangedCodeFragments(replServer, prepareAST(setGlobalsCommand));
+  // Evaluate the source file once at start, and then every time it changes.
   watchForFileChanges(
     filename, 100,
     (code) => {
       try {
         replServer._refreshLine();
-        evaluateChangedCodeFragments(replServer, prepare(code), filename);
+        evaluateChangedCodeFragments(replServer, prepareAST(code), filename);
       } catch (e) {
         console.log(e);
       }
