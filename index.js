@@ -9,7 +9,6 @@ const traverse = require('@babel/traverse').default;
 const types = require('@babel/types');
 const hoistVariables = require('@babel/helper-hoist-variables').default;
 const { createHash } = require('node:crypto');
-const { replaceExpressionWithStatements } = require('@babel/traverse/lib/path/replacement');
 const homedir = require('os').homedir();
 const staticBlockPlugin = require('@babel/plugin-proposal-class-static-block').default;
 
@@ -46,7 +45,7 @@ const varVisitor = {
     }
     if (path.node.kind !== 'var' || path.node.declarations.length > 1) {
       const outputNodes = path.node.declarations.map(
-        d => types.variableDeclaration("var", [d]));
+        d => types.variableDeclaration('var', [d]));
       path.replaceWithMultiple(outputNodes);
     }
   }
@@ -109,13 +108,21 @@ const getEnclosingMethod = path => path.findParent((path) => path.isMethod());
 
 const getEnclosingProperty = path => path.findParent((path) => path.isProperty());
 
+const isTopLevelDeclaredObject = (path) =>
+  types.isVariableDeclarator(path.parentPath) &&
+  types.isVariableDeclaration(path.parentPath.parentPath) &&
+  types.isProgram(path.parentPath.parentPath.parentPath);
+
 const handleCallExpression = (path) => {
   if (path.node.callee.type !== 'MemberExpression' ||
       path.node.callee.object.type !== 'Super') {
     return;
   }
   const methodPath = getEnclosingMethod(path);
-  if (!methodPath || methodPath.kind === "constructor") {
+  if (!methodPath || methodPath.kind === 'constructor') {
+    return;
+  }
+  if (!isTopLevelDeclaredObject(getEnclosingClass(path))) {
     return;
   }
   const methodName = path.node.callee.property.name;
@@ -129,16 +136,18 @@ const handleCallExpression = (path) => {
 
 const handleMemberExpression = (path) => {
   const object = path.node.object;
-  if (object.type === 'Super') {
-    const enclosure = getEnclosingProperty(path) ?? getEnclosingMethod(path);
-    const superClassName = getEnclosingSuperClassName(path);
-    if (enclosure.node.static) {
-      object.type = "Identifier";
-      object.name = superClassName;
-    } else {
-     // path.replaceWith(template.ast('undefined'));
-      throw new Error("super found in the wrong place!");
-    }
+  if (object.type !== 'Super' ||
+      !isTopLevelDeclaredObject(getEnclosingClass(path))) {
+    return;
+  }
+  const enclosure = getEnclosingProperty(path) ?? getEnclosingMethod(path);
+  const superClassName = getEnclosingSuperClassName(path);
+  if (enclosure.node.static) {
+    object.type = 'Identifier';
+    object.name = superClassName;
+  } else {
+    // path.replaceWith(template.ast('undefined'));
+    throw new Error('super found in the wrong place!');
   }
 };
 
@@ -151,13 +160,8 @@ const handlePrivateProperty = (path, propertyType) => {
   path.node.key.id = undefined;
 };
 
-const isTopLevelDeclaredObject = (path) =>
-  types.isVariableDeclarator(path.parentPath) &&
-  types.isVariableDeclaration(path.parentPath.parentPath) &&
-  types.isProgram(path.parentPath.parentPath.parentPath);
-
-const nodesForClass = ({className, classBodyNodes}) => {
-  const outputNodes = [], retainedNodes = [];
+const nodesForClass = ({ className, classBodyNodes }) => {
+  const outputNodes = []; const retainedNodes = [];
   for (const classBodyNode of classBodyNodes) {
     let templateAST;
     // Convert methods and fields declarations to separable
@@ -169,7 +173,7 @@ const nodesForClass = ({className, classBodyNodes}) => {
         templateAST = template.ast(
           `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = ${classBodyNode.async ? 'async ' : ''}function${classBodyNode.generator ? '*' : ''} () {}`
         );
-        fun = templateAST.expression.right;
+        const fun = templateAST.expression.right;
         fun.body = classBodyNode.body;
         fun.params = classBodyNode.params;
       } else if (classBodyNode.kind === 'get' ||
@@ -180,7 +184,7 @@ const nodesForClass = ({className, classBodyNodes}) => {
              configurable: true
            });`
         );
-        fun = templateAST.expression.arguments[2].properties[0].value;
+        const fun = templateAST.expression.arguments[2].properties[0].value;
         fun.body = classBodyNode.body;
         fun.params = classBodyNode.params;
       } else {
@@ -200,39 +204,12 @@ const nodesForClass = ({className, classBodyNodes}) => {
       outputNodes.push(templateAST);
     }
   }
-  return {retainedNodes, outputNodes};
+  return { retainedNodes, outputNodes };
 };
 
 // Make class declarations mutable by transforming to class
 // expressions assigned to a var, with member declarations
 // hoisted out of the class body.
-//
-// class A {
-//   constructor() {
-//     this.q_ = 1;
-//   }
-//   inc() {
-//     ++this.q_;
-//   }
-//   get q() {
-//     return this.q_;
-//   }
-//   set q(value) {
-//     this.q_ = value;
-//   }
-// }
-//  ... gets transformed to ...
-// var A = class A () { constructor() { this.q_ = 1; } }
-// A.prototype.inc = function () { ++this.q_; }
-// Object.defineProperty(A.prototype, "q",
-//   { get: function () { return this.q_; },
-//     configurable: true });
-// Object.defineProperty(A.prototype, "q",
-//   { set: function (value) { this.q_ = value; }
-//     configurable: true });
-//
-// See also: good stuff at
-// https://github.com/AMorgaut/babel-plugin-transform-class/blob/master/src/index.js
 const classVisitor = {
   PrivateName: {
     enter (path) {
@@ -252,18 +229,15 @@ const classVisitor = {
       return;
     }
     const classNode = path.node;
-    let className, superClassName, classBodyNodes, classInternalName;
+    let className, classBodyNodes;
     if (types.isVariableDeclarator(path.parentPath)) {
       className = path.parentPath.node.id.name;
     }
     if (types.isClassBody(classNode.body)) {
       classBodyNodes = classNode.body.body;
     }
-    if (classNode.superClass &&
-      types.isIdentifier(classNode.superClass)) {
-      superClassName = classNode.superClass.name;
-    }
-    const {retainedNodes, outputNodes} = nodesForClass({classNode, className, superClassName, classBodyNodes});
+    const { retainedNodes, outputNodes } = nodesForClass(
+      { classNode, className, classBodyNodes });
     classNode.body.body = retainedNodes;
     for (const outputNode of outputNodes) {
       path.parentPath.parentPath.insertAfter(outputNode);
@@ -276,7 +250,7 @@ const classVisitor = {
     }
     // Convert a class declaration into a class expression bound to a var.
     const classNode = path.node;
-    const expression = template.ast(`var AClass = class AClass { }`);
+    const expression = template.ast('var AClass = class AClass { }');
     const declaration = expression.declarations[0];
     declaration.id.name = classNode.id.name;
     declaration.init.id.name = classNode.id.name;
@@ -295,10 +269,7 @@ const superVisitor = {
   }
 };
 
-const staticBlockVisitor = staticBlockPlugin({
-  types, template, assertVersion: () => undefined}).visitor;
-
-
+const staticBlockVisitor = staticBlockPlugin({ types, template, assertVersion: () => undefined }).visitor;
 
 const objectVisitor = {
   ObjectExpression (path) {
@@ -308,7 +279,7 @@ const objectVisitor = {
     const originalProperties = path.node.properties;
     path.node.properties = [];
     const name = path.parentPath.node.id.name;
-    let outputASTs = [];
+    const outputASTs = [];
     for (const property of originalProperties) {
       let ast;
       if (types.isObjectProperty(property)) {
@@ -330,14 +301,14 @@ const objectVisitor = {
           expressionRight.generator = property.generator;
           expressionRight.body = property.body;
         } else {
-          throw new Error("Unexpected key type ${key.type}");
+          throw new Error(`Unexpected key type '${key.type}'.`);
         }
       } else {
-        throw new Error("Unexpected object member ${propety.type}.");
+        throw new Error(`Unexpected object member '${property.type}'.`);
       }
       outputASTs.push(ast);
     }
-    for (let outputAST of outputASTs.reverse()) {
+    for (const outputAST of outputASTs.reverse()) {
       path.parentPath.parentPath.insertAfter(outputAST);
     }
   }
@@ -411,18 +382,18 @@ const prepare = (code) => {
     return '\n';
   }
   let ast = parse(code);
-  //console.log(varVisitor.VariableDeclaration.toString());
+  // console.log(varVisitor.VariableDeclaration.toString());
   ast = transform(
     ast, [importVisitor, superVisitor, staticBlockVisitor,
-          objectVisitor, classVisitor, varVisitor]);
+      objectVisitor, classVisitor, varVisitor]);
   return generate(ast).code;
 };
 
 // Returns true if the inputted code is incomplete.
 const incompleteCode = (code, e) =>
   e &&
-  e.code === "BABEL_PARSER_SYNTAX_ERROR" &&
-  e.reasonCode === "UnexpectedToken" &&
+  e.code === 'BABEL_PARSER_SYNTAX_ERROR' &&
+  e.reasonCode === 'UnexpectedToken' &&
   e.loc &&
   e.loc.index === code.length &&
   code[code.length - 1] === '\n';
