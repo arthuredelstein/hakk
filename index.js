@@ -153,7 +153,6 @@ const handlePrivateProperty = (path, propertyType) => {
   path.node.key.id = undefined;
 };
 
-
 const isTopLevelDeclaredObject = (path) =>
   types.isVariableDeclarator(path.parentPath) &&
   types.isVariableDeclaration(path.parentPath.parentPath) &&
@@ -223,7 +222,7 @@ const nodesForClass = ({classNode, className, superClassName, classBodyNodes, cl
   // Delegate this class's constructor to `this._CONSTRUCTOR_` so
   // that user can replace it dynamically.
   const declarationAST = template.ast(
-    `var ${className} = function ${classInternalName ?? ''}(...args) { this._CONSTRUCTOR_(...args); }`
+    `var ${className} = class ${classInternalName ?? ''} ${superClassName ? "extends " + superClassName : ""} { constructor(...args) { this._CONSTRUCTOR_(...args); } }`
   );
   outputNodes.unshift(declarationAST);
   return outputNodes;
@@ -271,7 +270,7 @@ const classVisitor = {
   ClassPrivateProperty (path) {
     handlePrivateProperty(path, 'ClassProperty');
   },
-  ClassExpression: {
+/*  ClassExpression: {
     exit (path) {
       // Only do top-level class variable declarations.
       if (!isTopLevelDeclaredObject(path)) {
@@ -295,28 +294,21 @@ const classVisitor = {
       const outputNodes = nodesForClass({classNode, className, superClassName, classBodyNodes, classInternalName});
       path.parentPath.parentPath.replaceWithMultiple(outputNodes);
     }
-  },
-  ClassDeclaration: {
-    exit (path) {
-      // Only do top-level class declarations.
-      if (!types.isProgram(path.parentPath)) {
-        return;
-      }
-      let className, superClassName, classBodyNodes;
-      const classNode = path.node;
-      if (classNode.id.type === 'Identifier') {
-        className = classNode.id.name;
-      }
-      if (classNode.superClass &&
-          classNode.superClass.type === 'Identifier') {
-        superClassName = classNode.superClass.name;
-      }
-      if (classNode.body.type === 'ClassBody') {
-        classBodyNodes = classNode.body.body;
-      }
-      const outputNodes = nodesForClass({classNode, className, superClassName, classBodyNodes});
-      path.replaceWithMultiple(outputNodes);
+  },*/
+  ClassDeclaration (path) {
+    // Only modify top-level class declarations.
+    if (!types.isProgram(path.parentPath)) {
+      return;
     }
+    // Convert a class declaration into a class expression bound to a var.
+    const classNode = path.node;
+    const expression = template.ast(`var AClass = class AClass { }`);
+    const declaration = expression.declarations[0];
+    declaration.id.name = classNode.id.name;
+    declaration.init.id.name = classNode.id.name;
+    declaration.init.body = classNode.body;
+    declaration.init.superClass = classNode.superClass;
+    path.replaceWith(expression);
   }
 };
 
