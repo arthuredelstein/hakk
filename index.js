@@ -386,19 +386,22 @@ const changedNodesToCodeFragments = (nodes) => {
   return [].concat(toRemove, toWrite);
 }
 
+const evaluateCodeInRepl = (replServer, code, filename) =>
+  new Promise((resolve, reject) => {
+    replServer.eval(code, replServer.context, filename,
+      (err, result) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(result);
+        }
+      });
+  });
+
 const evaluateChangedCodeFragments = async (replServer, ast, filename) => {
   const fragments = changedNodesToCodeFragments(ast.program.body);
   for (const fragment of fragments) {
-    await new Promise((resolve, reject) => {
-      replServer.eval(fragment, replServer.context, filename,
-        (err, result) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(result);
-          }
-        });
-    });
+    await evaluateCodeInRepl(replServer, fragment, filename);
   }
 };
 
@@ -457,7 +460,7 @@ const run = async (filename) => {
     var _IMPORT_ = { meta: ''};
   `;
   // Prepare the repl for a source file.
-  evaluateChangedCodeFragments(replServer, prepareAST(setGlobalsCommand));
+  evaluateCodeInRepl(replServer, generate(prepareAST(setGlobalsCommand)).code, filename);
   // Evaluate the source file once at start, and then every time it changes.
   watchForFileChanges(
     filename, 100,
