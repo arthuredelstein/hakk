@@ -194,7 +194,7 @@ const nodesForClass = ({ className, classBodyNodes }) => {
         fun.body = classBodyNode.body;
         fun.params = classBodyNode.params;
         const getter = classBodyNode.kind === 'get';
-        templateAST._removeCode = `Object.defineProperty(${className}.prototype, "${keyName}", {
+        templateAST._removeCode = `if (${className}) Object.defineProperty(${className}.prototype, "${keyName}", {
           ${classBodyNode.kind}: function (${getter ? "" : 'value'}) {
             return this._PROPERTY_${keyName} ${getter ? "" : "= value" };
           },
