@@ -4,7 +4,7 @@
   "description": "repl for hakking on node scripts",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "author": "Arthur Edelstein",
   "license": "MIT",
@@ -20,5 +20,8 @@
   },
   "bin": {
     "hakk": "./bin.js"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.2.5"
   }
 }
