@@ -7,7 +7,7 @@ const repl = require('node:repl');
 const template = require('@babel/template').default;
 const traverse = require('@babel/traverse').default;
 const types = require('@babel/types');
-const hoistVariables = require('@babel/helper-hoist-variables').default;
+// TODO: const hoistVariables = require('@babel/helper-hoist-variables').default;
 const { createHash } = require('node:crypto');
 const homedir = require('os').homedir();
 const staticBlockPlugin = require('@babel/plugin-proposal-class-static-block').default;
@@ -195,11 +195,11 @@ const nodesForClass = ({ className, classBodyNodes }) => {
         fun.params = classBodyNode.params;
         const getter = classBodyNode.kind === 'get';
         templateAST._removeCode = `if (${className}) Object.defineProperty(${className}.prototype, "${keyName}", {
-          ${classBodyNode.kind}: function (${getter ? "" : 'value'}) {
-            return this._PROPERTY_${keyName} ${getter ? "" : "= value" };
+          ${classBodyNode.kind}: function (${getter ? '' : 'value'}) {
+            return this._PROPERTY_${keyName} ${getter ? '' : '= value'};
           },
           configurable: true
-        });`
+        });`;
       } else {
         throw new Error(`Unexpected ClassMethod kind ${classBodyNode.kind}`);
       }
@@ -218,7 +218,9 @@ const nodesForClass = ({ className, classBodyNodes }) => {
       outputNodes.push(templateAST);
     }
   }
-  outputNodes.map(outputNode => outputNode.parentFragmentLabel = className);
+  outputNodes.forEach(function (outputNode) {
+    outputNode.parentFragmentLabel = className;
+  });
   return { retainedNodes, outputNodes };
 };
 
@@ -259,10 +261,10 @@ const classVisitor = {
       for (const outputNode of outputNodes) {
         path.parentPath.parentPath.insertAfter(outputNode);
       }
-      }
+    }
   },
   ClassDeclaration: {
-    exit(path) {
+    exit (path) {
       // Only modify top-level class declarations.
       if (!types.isProgram(path.parentPath)) {
         return;
@@ -339,6 +341,7 @@ const objectVisitor = {
 
 // ## REPL setup
 
+/*
 // TODO:: Detect use of top-level await and if it's
 // found, wrap everything but the vars in (async () => { ... })()
 const hoistTopLevelVars = (ast) => {
@@ -354,6 +357,7 @@ const hoistTopLevelVars = (ast) => {
   });
   return ast;
 };
+*/
 
 let previousNodes = new Map();
 
@@ -377,14 +381,14 @@ const changedNodesToCodeFragments = (nodes) => {
     }
   }
   // Removal code for previousNodes that haven't been found in new file version.
-  for (const [fragment, node] of previousNodes.entries()) {
+  for (const [node] of previousNodes.values()) {
     if (node._removeCode) {
       toRemove.push(node._removeCode);
     }
   }
   previousNodes = currentNodes;
   return [].concat(toRemove, toWrite);
-}
+};
 
 const evaluateCodeInRepl = (replServer, code, filename) =>
   new Promise((resolve, reject) => {
@@ -416,13 +420,16 @@ const prepareAST = (code) => {
   if (code.trim().length === 0) {
     return '\n';
   }
-  let ast = parse(code);
+  const ast = parse(code);
   // console.log(varVisitor.VariableDeclaration.toString());
   return transform(
     ast, [importVisitor, superVisitor, staticBlockVisitor,
       objectVisitor, classVisitor, varVisitor]);
 };
 
+const prepareCode = (code) => generate(prepareAST(code)).code;
+
+/*
 // Returns true if the inputted code is incomplete.
 const incompleteCode = (code, e) =>
   e &&
@@ -431,6 +438,7 @@ const incompleteCode = (code, e) =>
   e.loc &&
   e.loc.index === code.length &&
   code[code.length - 1] === '\n';
+*/
 
 const useEvalWithCodeModifications = (replServer, modifierFunction) => {
   const originalEval = replServer.eval;
@@ -474,4 +482,4 @@ const run = async (filename) => {
     });
 };
 
-exports.run = run;
+module.exports = { run, prepareCode };
