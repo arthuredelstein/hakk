@@ -130,7 +130,7 @@ const invertMap = (m) => {
   return result;
 }
 
-const addSome = (a) => 19 + a;
+const addSome = (a) => 15 + a;
 
 const reverse = (s) => {
   return s.split("").reverse().join("");
