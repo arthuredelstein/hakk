@@ -238,41 +238,45 @@ const classVisitor = {
   ClassPrivateProperty (path) {
     handlePrivateProperty(path, 'ClassProperty');
   },
-  ClassExpression (path) {
-    // Only do top-level class variable declarations.
-    if (!isTopLevelDeclaredObject(path)) {
-      return;
-    }
-    const classNode = path.node;
-    let className, classBodyNodes;
-    if (types.isVariableDeclarator(path.parentPath)) {
-      className = path.parentPath.node.id.name;
-    }
-    if (types.isClassBody(classNode.body)) {
-      classBodyNodes = classNode.body.body;
-    }
-    const { retainedNodes, outputNodes } = nodesForClass(
-      { classNode, className, classBodyNodes });
-    classNode.body.body = retainedNodes;
-    path.parentPath.parentPath.node.fragmentLabel = className;
-    for (const outputNode of outputNodes) {
-      path.parentPath.parentPath.insertAfter(outputNode);
-    }
+  ClassExpression: {
+    exit (path) {
+      // Only do top-level class variable declarations.
+      if (!isTopLevelDeclaredObject(path)) {
+        return;
+      }
+      const classNode = path.node;
+      let className, classBodyNodes;
+      if (types.isVariableDeclarator(path.parentPath)) {
+        className = path.parentPath.node.id.name;
+      }
+      if (types.isClassBody(classNode.body)) {
+        classBodyNodes = classNode.body.body;
+      }
+      const { retainedNodes, outputNodes } = nodesForClass(
+        { classNode, className, classBodyNodes });
+      classNode.body.body = retainedNodes;
+      path.parentPath.parentPath.node.fragmentLabel = className;
+      for (const outputNode of outputNodes) {
+        path.parentPath.parentPath.insertAfter(outputNode);
+      }
+      }
   },
-  ClassDeclaration (path) {
-    // Only modify top-level class declarations.
-    if (!types.isProgram(path.parentPath)) {
-      return;
+  ClassDeclaration: {
+    exit(path) {
+      // Only modify top-level class declarations.
+      if (!types.isProgram(path.parentPath)) {
+        return;
+      }
+      // Convert a class declaration into a class expression bound to a var.
+      const classNode = path.node;
+      const expression = template.ast('var AClass = class AClass { }');
+      const declaration = expression.declarations[0];
+      declaration.id.name = classNode.id.name;
+      declaration.init.id.name = classNode.id.name;
+      declaration.init.body = classNode.body;
+      declaration.init.superClass = classNode.superClass;
+      path.replaceWith(expression);
     }
-    // Convert a class declaration into a class expression bound to a var.
-    const classNode = path.node;
-    const expression = template.ast('var AClass = class AClass { }');
-    const declaration = expression.declarations[0];
-    declaration.id.name = classNode.id.name;
-    declaration.init.id.name = classNode.id.name;
-    declaration.init.body = classNode.body;
-    declaration.init.superClass = classNode.superClass;
-    path.replaceWith(expression);
   }
 };
 
