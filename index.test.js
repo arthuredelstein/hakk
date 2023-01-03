@@ -1,12 +1,12 @@
 const { prepareCode } = require('./index.js');
 
 const cleanString = (x) =>
-  x.replace(/\s+/g, " ");
+  x.replace(/\s+/g, ' ');
 
 const testTransform = (description, before, after) =>
   test(description, () => {
     expect(cleanString(prepareCode(before)))
-      .toBe(cleanString(after))
+      .toBe(cleanString(after));
   });
 
 testTransform('const changed to var', 'const x = 1;', 'var x = 1;');
