@@ -52,14 +52,71 @@ testTransform('mangle private field',
 `var A = class A {};
 A.prototype._PRIVATE_field1 = 7;`);
 
-testTransform('preserve constructor',
+testTransform('keep the original constructor',
   `class A extends B {
   constructor(b, a) {
     super(a, b);
+  }
+  method1(x) {
+    return x;
   }
 }`,
 `var A = class A extends B {
   constructor(b, a) {
     super(a, b);
   }
+};
+A.prototype.method1 = function (x) {
+  return x;
 };`);
+
+testTransform('split compound declaration into simple',
+  'const x = 1, y = 2, z = 3;',
+  `var x = 1;
+   var y = 2;
+   var z = 3;`);
+
+testTransform('import default',
+  'import defaultExport from "module-name";',
+  "var { default: defaultExport } = await import('module-name');");
+
+testTransform('import wildcard',
+  'import * as name from "module-name";',
+  "var name = await import('module-name');");
+
+testTransform('import with simple export',
+  'import { export1 } from "module-name";',
+  "var { export1 } = await import('module-name');");
+
+testTransform('import with simple alias',
+  'import { export1 as alias1 } from "module-name";',
+  "var { export1: alias1 } = await import('module-name');");
+
+testTransform('import with default as alias',
+  'import { default as alias } from "module-name";',
+  "var { default: alias } = await import('module-name');");
+
+testTransform('import with multiple exports',
+  'import { export1, export2 } from "module-name";',
+  "var { export1, export2 } = await import('module-name');");
+
+testTransform('import with multiple exports and one alias',
+  'import { export1, export2 as alias2 } from "module-name";',
+  "var { export1, export2: alias2 } = await import('module-name');");
+
+testTransform('import with a string alias',
+  'import { "string name" as alias } from "module-name";',
+  "var { 'string name': alias } = await import('module-name');");
+
+testTransform('default and export',
+  'import defaultExport, { export1 } from "module-name";',
+  "var { default: defaultExport, export1 } = await import('module-name');");
+
+testTransform('import default and wildcard',
+  'import defaultExport, * as name from "module-name";',
+  `var name = await import('module-name');
+  var { default: defaultExport } = name;`);
+
+testTransform('import just the module',
+  'import "module-name";',
+  "await import('module-name');");
