@@ -429,7 +429,6 @@ const prepareAST = (code) => {
 
 const prepareCode = (code) => generate(prepareAST(code)).code;
 
-/*
 // Returns true if the inputted code is incomplete.
 const incompleteCode = (code, e) =>
   e &&
@@ -438,7 +437,6 @@ const incompleteCode = (code, e) =>
   e.loc &&
   e.loc.index === code.length &&
   code[code.length - 1] === '\n';
-*/
 
 const useEvalWithCodeModifications = (replServer, modifierFunction) => {
   const originalEval = replServer.eval;
@@ -446,7 +444,11 @@ const useEvalWithCodeModifications = (replServer, modifierFunction) => {
     try {
       originalEval(modifierFunction(code), context, filename, callback);
     } catch (e) {
-      // console.log(e);
+      if (incompleteCode(code, e)) {
+        return callback(new repl.Recoverable(e));
+      } else {
+        console.log(e);
+      }
     }
   };
   replServer.eval = newEval;
@@ -460,7 +462,7 @@ const run = async (filename) => {
   fs.mkdirSync(historyDir, { recursive: true });
   await new Promise(resolve => replServer.setupHistory(path.join(historyDir, sha256(filenameFullPath)), resolve));
   // Transform user input before evaluation.
-  useEvalWithCodeModifications(replServer, code => generate(prepareAST(code)).code);
+  useEvalWithCodeModifications(replServer, prepareCode);
   const setGlobalsCommand = `
     __filename = '${filenameFullPath}';
     __dirname = '${path.dirname(filenameFullPath)}';
@@ -468,7 +470,7 @@ const run = async (filename) => {
     var _IMPORT_ = { meta: ''};
   `;
   // Prepare the repl for a source file.
-  evaluateCodeInRepl(replServer, generate(prepareAST(setGlobalsCommand)).code, filename);
+  evaluateCodeInRepl(replServer, prepareCode(setGlobalsCommand), filename);
   // Evaluate the source file once at start, and then every time it changes.
   watchForFileChanges(
     filename, 100,
