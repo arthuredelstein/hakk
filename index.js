@@ -20,7 +20,7 @@ const parse = (code) => parser.parse(code, { sourceType: 'module' });
 const watchForFileChanges = (path, interval, callback) => {
   const readAndCallback = async () => {
     const contents = await fsPromises.readFile(path, { encoding: 'utf8' });
-    callback(contents);
+    await callback(contents);
   };
   readAndCallback();
   fs.watchFile(
@@ -484,10 +484,12 @@ const run = async (filename) => {
   // Evaluate the source file once at start, and then every time it changes.
   watchForFileChanges(
     filename, 100,
-    (code) => {
+    async (code) => {
       try {
-        replServer._refreshLine();
-        evaluateChangedCodeFragments(replServer, prepareAST(code), filename);
+        await evaluateChangedCodeFragments(replServer, prepareAST(code), filename);
+        // Trigger preview update in case the file has updated a function
+        // that will produce a new result for the pending REPL input.
+        replServer._ttyWrite(null, {});
       } catch (e) {
         console.log(e);
       }
