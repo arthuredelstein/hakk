@@ -381,7 +381,7 @@ const changedNodesToCodeFragments = (nodes) => {
     }
   }
   // Removal code for previousNodes that haven't been found in new file version.
-  for (const [node] of previousNodes.values()) {
+  for (const node of previousNodes.values()) {
     if (node._removeCode) {
       toRemove.push(node._removeCode);
     }
