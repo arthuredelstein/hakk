@@ -108,7 +108,7 @@ testTransform('import with a string alias',
   'import { "string name" as alias } from "module-name";',
   "var { 'string name': alias } = await import('module-name');");
 
-testTransform('default and export',
+testTransform('import default, plus one export',
   'import defaultExport, { export1 } from "module-name";',
   "var { default: defaultExport, export1 } = await import('module-name');");
 
