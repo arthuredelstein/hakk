@@ -418,7 +418,7 @@ const transform = (ast, visitors) => {
 
 const prepareAST = (code) => {
   if (code.trim().length === 0) {
-    return '\n';
+    return '';
   }
   const ast = parse(code);
   // console.log(varVisitor.VariableDeclaration.toString());
@@ -427,7 +427,13 @@ const prepareAST = (code) => {
       objectVisitor, classVisitor, varVisitor]);
 };
 
-const prepareCode = (code) => generate(prepareAST(code)).code;
+const prepareCode = (code) => {
+  if (code.length === 0) {
+    return '';
+  } else {
+    return generate(prepareAST(code)).code;
+  }
+};
 
 // Returns true if the inputted code is incomplete.
 const incompleteCode = (code, e) =>
@@ -442,12 +448,16 @@ const useEvalWithCodeModifications = (replServer, modifierFunction) => {
   const originalEval = replServer.eval;
   const newEval = (code, context, filename, callback) => {
     try {
-      originalEval(modifierFunction(code), context, filename, callback);
+      const modifiedCode = modifierFunction(code);
+      if (modifiedCode.trim().length === 0) {
+        return callback(null);
+      }
+      originalEval(modifiedCode, context, filename, callback);
     } catch (e) {
       if (incompleteCode(code, e)) {
         return callback(new repl.Recoverable(e));
       } else {
-        console.log(e);
+        return callback(e);
       }
     }
   };
