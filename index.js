@@ -303,9 +303,9 @@ const objectVisitor = {
     const name = path.parentPath.node.id.name;
     const outputASTs = [];
     for (const property of originalProperties) {
+      const key = property.key;
       let ast;
       if (types.isObjectProperty(property)) {
-        const key = property.key;
         if (types.isIdentifier(key)) {
           ast = template.ast(`${name}.${key.name} = undefined;`);
         }
@@ -314,7 +314,6 @@ const objectVisitor = {
         }
         ast.expression.right = property.value;
       } else if (types.isObjectMethod(property)) {
-        const key = property.key;
         if (types.isIdentifier(key)) {
           ast = template.ast(`${name}.${key.name} = function () { };`);
           const expressionRight = ast.expression.right;
@@ -328,6 +327,7 @@ const objectVisitor = {
       } else {
         throw new Error(`Unexpected object member '${property.type}'.`);
       }
+      ast._removeCode = `delete ${name}['${key.name}']`;
       outputASTs.push(ast);
     }
     for (const outputAST of outputASTs.reverse()) {
@@ -336,6 +336,21 @@ const objectVisitor = {
   }
 };
 
+/*
+const exportVisitor = {
+  ExportNamedDeclaration: {
+    enter(path) {
+      p1 = path;
+      console.log(path.node.specifiers, path.node.declarations);
+      if (path.node.specifiers.length === 0 && path.node.declaration !== null) {
+        path.replaceWith(path.node.declaration);
+      } else {
+        path.replaceWith(null);
+      }
+    }
+  }
+}
+*/
 // TODO:
 // `Extends` and `super` using https://stackoverflow.com/questions/15192722/javascript-extending-class
 
