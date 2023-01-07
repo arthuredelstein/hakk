@@ -376,6 +376,14 @@ const hoistTopLevelVars = (ast) => {
 
 let previousNodes = new Map();
 
+// TODO: Get source mapping with something like:
+// generate(ast, {sourceMaps: true, sourceFileName: "test"})
+// (The `generate` API requires `sourceFileName` to be included for source maps
+// to be generated.)
+// Q: Can we use https://www.npmjs.com/package/babel-plugin-source-map-support
+// and https://www.npmjs.com/package/source-map-support ?
+// How do these work? See also https://v8.dev/docs/stack-trace-api
+
 const changedNodesToCodeFragments = (nodes) => {
   const toWrite = [];
   const toRemove = [];
@@ -451,13 +459,22 @@ const prepareCode = (code) => {
 };
 
 // Returns true if the inputted code is incomplete.
-const incompleteCode = (code, e) =>
+const unexpectedNewLine = (code, e) =>
   e &&
   e.code === 'BABEL_PARSER_SYNTAX_ERROR' &&
   e.reasonCode === 'UnexpectedToken' &&
   e.loc &&
   e.loc.index === code.length &&
   code[code.length - 1] === '\n';
+
+const unterminatedTemplate = (code, e) =>
+  e &&
+  e.code === 'BABEL_PARSER_SYNTAX_ERROR' &&
+  e.reasonCode === 'UnterminatedTemplate' &&
+  code[code.length - 1] === '\n';
+
+const incompleteCode = (code, e) =>
+  unexpectedNewLine(code, e) || unterminatedTemplate(code, e);
 
 const useEvalWithCodeModifications = (replServer, modifierFunction) => {
   const originalEval = replServer.eval;
