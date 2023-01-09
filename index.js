@@ -336,22 +336,41 @@ const objectVisitor = {
   }
 };
 
+const astCodeToAddToModuleExports = (identifier, localName) =>
+  types.isStringLiteral(identifier)
+    ? template.ast(`module.exports['${identifier.name}'] = ${localName}`)
+    : template.ast(`module.exports.${identifier.name} = ${localName}`);
+
 const handleExportNameDeclaration = (path) => {
   const outputASTs = [];
-  if (path.node.specifiers.length > 0 && path.node.declaration === null) {
-    for (const specifier of path.node.specifiers) {
+  const specifiers = path.node.specifiers;
+  const declaration = path.node.declaration;
+  if (specifiers && specifiers.length > 0 && declaration === null) {
+    for (const specifier of specifiers) {
       if (types.isExportSpecifier(specifier)) {
-        const localName = specifier.local.name;
-        const resultsAST = types.isStringLiteral(specifier.exported)
-          ? template.ast(`module.exports['${specifier.exported.value}'] = ${localName}`)
-          : template.ast(`module.exports.${specifier.exported.name} = ${localName}`);
+        const resultsAST = astCodeToAddToModuleExports(specifier.exported, specifier.local.name);
         outputASTs.push(resultsAST);
       }
     }
-    path.replaceWithMultiple(outputASTs);
-  } else if (path.node.speciifers.length === 0 && path.node.declaration !== null) {
-    // TODO
+  } else if (specifiers.length === 0 && declaration !== null) {
+    outputASTs.push(declaration);
+    if (types.isVariableDeclaration(declaration)) {
+      // TODO: destructuring exports, e.g.:
+      // `export const { name1, name2: bar } = o;`
+      // `export const [ name1, name2 ] = array;`
+      for (const declarator of declaration.declarations) {
+        const resultsAST = astCodeToAddToModuleExports(declarator.id, declarator.id.name);
+        outputASTs.push(resultsAST);
+      }
+    }
+    if (types.isFunctionDeclaration(declaration) ||
+      types.isClassDeclaration(declaration)) {
+      const identifier = declaration.id;
+      const resultsAST = astCodeToAddToModuleExports(identifier, identifier.name);
+      outputASTs.push(resultsAST);
+    }
   }
+  path.replaceWithMultiple(outputASTs);
 };
 
 const exportVisitor = {
