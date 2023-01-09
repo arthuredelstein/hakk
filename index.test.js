@@ -120,3 +120,19 @@ testTransform('import default and wildcard',
 testTransform('import just the module',
   'import "module-name";',
   "await import('module-name');");
+
+testTransform('named exports, simple',
+  'let x = 1, y = 2; export { x, y }',
+  'var x = 1; var y = 2; module.exports.x = x; module.exports.y = y;')
+
+testTransform('named exports with aliases',
+  'let x = 1, y = 2; export { x as name1, y as name2}',
+  'var x = 1; var y = 2; module.exports.name1 = x; module.exports.name2 = y;');
+
+testTransform('named exports with string aliases',
+  'let x = 1, y = 2; export { x as "name1", y as "name2"}',
+  'var x = 1; var y = 2; module.exports[\'name1\'] = x; module.exports[\'name2\'] = y;');
+
+testTransform('named export as default',
+  'let x = 1; export { x as default}',
+  'var x = 1; module.exports.default = x;');

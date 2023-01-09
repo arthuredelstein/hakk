@@ -336,21 +336,30 @@ const objectVisitor = {
   }
 };
 
-/*
+const handleExportNameDeclaration = (path) => {
+  let outputASTs = [];
+  if (path.node.specifiers.length > 0 && path.node.declaration == null) {
+    for (const specifier of path.node.specifiers) {
+      if (types.isExportSpecifier(specifier)) {
+        const localName = specifier.local.name;
+        const resultsAST = types.isStringLiteral(specifier.exported) ?
+          template.ast(`module.exports['${specifier.exported.value}'] = ${localName}`) :
+          template.ast(`module.exports.${specifier.exported.name} = ${localName}`);
+        outputASTs.push(resultsAST);
+      }
+    }
+    path.replaceWithMultiple(outputASTs);
+  }
+}
+
 const exportVisitor = {
   ExportNamedDeclaration: {
-    enter(path) {
-      p1 = path;
-      console.log(path.node.specifiers, path.node.declarations);
-      if (path.node.specifiers.length === 0 && path.node.declaration !== null) {
-        path.replaceWith(path.node.declaration);
-      } else {
-        path.replaceWith(null);
-      }
+    exit(path) {
+      handleExportNameDeclaration(path);
     }
   }
 }
-*/
+
 // TODO:
 // `Extends` and `super` using https://stackoverflow.com/questions/15192722/javascript-extending-class
 
@@ -446,7 +455,7 @@ const prepareAST = (code) => {
   const ast = parse(code);
   // console.log(varVisitor.VariableDeclaration.toString());
   return transform(
-    ast, [importVisitor, superVisitor, staticBlockVisitor,
+    ast, [importVisitor, exportVisitor, superVisitor, staticBlockVisitor,
       objectVisitor, classVisitor, varVisitor]);
 };
 
