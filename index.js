@@ -337,28 +337,30 @@ const objectVisitor = {
 };
 
 const handleExportNameDeclaration = (path) => {
-  let outputASTs = [];
-  if (path.node.specifiers.length > 0 && path.node.declaration == null) {
+  const outputASTs = [];
+  if (path.node.specifiers.length > 0 && path.node.declaration === null) {
     for (const specifier of path.node.specifiers) {
       if (types.isExportSpecifier(specifier)) {
         const localName = specifier.local.name;
-        const resultsAST = types.isStringLiteral(specifier.exported) ?
-          template.ast(`module.exports['${specifier.exported.value}'] = ${localName}`) :
-          template.ast(`module.exports.${specifier.exported.name} = ${localName}`);
+        const resultsAST = types.isStringLiteral(specifier.exported)
+          ? template.ast(`module.exports['${specifier.exported.value}'] = ${localName}`)
+          : template.ast(`module.exports.${specifier.exported.name} = ${localName}`);
         outputASTs.push(resultsAST);
       }
     }
     path.replaceWithMultiple(outputASTs);
+  } else if (path.node.speciifers.length === 0 && path.node.declaration !== null) {
+    // TODO
   }
-}
+};
 
 const exportVisitor = {
   ExportNamedDeclaration: {
-    exit(path) {
+    exit (path) {
       handleExportNameDeclaration(path);
     }
   }
-}
+};
 
 // TODO:
 // `Extends` and `super` using https://stackoverflow.com/questions/15192722/javascript-extending-class

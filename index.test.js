@@ -9,9 +9,13 @@ const testTransform = (description, before, after) =>
       .toBe(cleanString(after));
   });
 
+// ## variable declarations
+
 testTransform('const changed to var', 'const x = 1;', 'var x = 1;');
 
 testTransform('let changed to var', 'let x = 1;', 'var x = 1;');
+
+// ## class declarations and expressions
 
 testTransform('class declaration changed to class expression',
   'class A {}', 'var A = class A {};');
@@ -76,6 +80,10 @@ testTransform('split compound declaration into simple',
    var y = 2;
    var z = 3;`);
 
+// ## `import` syntax
+// Testing all cases in
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#syntax
+
 testTransform('import default',
   'import defaultExport from "module-name";',
   "var { default: defaultExport } = await import('module-name');");
@@ -121,9 +129,13 @@ testTransform('import just the module',
   'import "module-name";',
   "await import('module-name');");
 
+// ## `export` syntax
+// TODO: Test all cases shown in
+// https://developer.mozilla.org/en-US/docs/web/javascript/reference/statements/export#syntax
+
 testTransform('named exports, simple',
   'let x = 1, y = 2; export { x, y }',
-  'var x = 1; var y = 2; module.exports.x = x; module.exports.y = y;')
+  'var x = 1; var y = 2; module.exports.x = x; module.exports.y = y;');
 
 testTransform('named exports with aliases',
   'let x = 1, y = 2; export { x as name1, y as name2}',
