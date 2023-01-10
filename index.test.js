@@ -50,10 +50,10 @@ testTransform('mangle private method',
   };`);
 
 testTransform('mangle private field',
-`class A {
+  `class A {
   #field1 = 7;
 }`,
-`var A = class A {};
+  `var A = class A {};
 A.prototype._PRIVATE_field1 = 7;`);
 
 testTransform('keep the original constructor',
@@ -65,7 +65,7 @@ testTransform('keep the original constructor',
     return x;
   }
 }`,
-`var A = class A extends B {
+  `var A = class A extends B {
   constructor(b, a) {
     super(a, b);
   }

@@ -70,11 +70,11 @@ const importVisitor = {
         specifiers.push(`default: ${specifier.local.name}`);
       } else if (specifier.type === 'ImportSpecifier') {
         if (specifier.imported.type === 'Identifier' &&
-            specifier.imported.name !== specifier.local.name) {
+          specifier.imported.name !== specifier.local.name) {
           specifiers.push(
             `${specifier.imported.name}: ${specifier.local.name}`);
         } else if (specifier.imported.type === 'StringLiteral' &&
-                   specifier.imported.value !== specifier.local.name) {
+          specifier.imported.value !== specifier.local.name) {
           specifiers.push(
             `'${specifier.imported.value}': ${specifier.local.name}`);
         } else {
@@ -119,7 +119,7 @@ const isTopLevelDeclaredObject = (path) =>
 
 const handleCallExpression = (path) => {
   if (path.node.callee.type !== 'MemberExpression' ||
-      path.node.callee.object.type !== 'Super') {
+    path.node.callee.object.type !== 'Super') {
     return;
   }
   const methodPath = getEnclosingMethod(path);
@@ -182,7 +182,7 @@ const nodesForClass = ({ className, classBodyNodes }) => {
         fun.params = classBodyNode.params;
         templateAST._removeCode = `if (${className}) { delete ${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} };`;
       } else if (classBodyNode.kind === 'get' ||
-                 classBodyNode.kind === 'set') {
+        classBodyNode.kind === 'set') {
         const keyName = classBodyNode.key.name;
         templateAST = template.ast(
           `Object.defineProperty(${className}.prototype, "${keyName}", {
@@ -373,10 +373,30 @@ const handleExportNameDeclaration = (path) => {
   path.replaceWithMultiple(outputASTs);
 };
 
+const handleExportDefaultDeclaration = (path) => {
+  const outputAST = template.ast('module.exports.default = undefined');
+  outputAST.expression.right = path.node.declaration;
+  path.replaceWith(outputAST);
+};
+
+const handleExportAllDeclaration = (path) => {
+
+};
+
 const exportVisitor = {
   ExportNamedDeclaration: {
     exit (path) {
       handleExportNameDeclaration(path);
+    }
+  },
+  ExportDefaultDeclaration: {
+    exit (path) {
+      handleExportDefaultDeclaration(path);
+    }
+  },
+  ExportAllDeclaration: {
+    exit (path) {
+      handleExportAllDeclaration(path);
     }
   }
 };
@@ -423,8 +443,8 @@ const changedNodesToCodeFragments = (nodes) => {
     const fragment = generate(node, { comments: false }, '').code.trim();
     currentNodes.set(fragment, node);
     if (previousNodes.has(fragment) &&
-        !(node.parentFragmentLabel &&
-          updatedParentFragments.has(node.parentFragmentLabel))) {
+      !(node.parentFragmentLabel &&
+        updatedParentFragments.has(node.parentFragmentLabel))) {
       previousNodes.delete(fragment);
     } else {
       if (node.fragmentLabel) {
@@ -475,8 +495,8 @@ const prepareAST = (code) => {
   }
   const ast = parse(code);
   // console.log(varVisitor.VariableDeclaration.toString());
-  return transform(
-    ast, [importVisitor, exportVisitor, superVisitor, staticBlockVisitor,
+  return transform(ast,
+    [importVisitor, exportVisitor, superVisitor, staticBlockVisitor,
       objectVisitor, classVisitor, varVisitor]);
 };
 
