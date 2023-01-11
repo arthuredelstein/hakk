@@ -121,6 +121,42 @@ testTransform('import "module-name";',
 // TODO: Test all cases shown in
 // https://developer.mozilla.org/en-US/docs/web/javascript/reference/statements/export#syntax
 
+// ### Exporting declarations
+
+testTransform('export let name1, name2',
+  `var name1;
+   var name2;
+   module.exports.name1 = name1;
+   module.exports.name2 = name2;`);
+
+testTransform('export const name1 = 1, name2 = 2;',
+  `var name1 = 1;
+   var name2 = 2;
+   module.exports.name1 = name1;
+   module.exports.name2 = name2;`);
+
+testTransform('export function functionName() { /* … */ }',
+  `function functionName() {/* … */}
+  module.exports.functionName = functionName;`);
+
+testTransform('export class ClassName { /* … */ }',
+  `var ClassName = class ClassName {/* … */};
+  module.exports.ClassName = ClassName;`);
+
+testTransform('export function* generatorFunctionName() { /* … */ }',
+  `function* generatorFunctionName() {/* … */}
+  module.exports.generatorFunctionName = generatorFunctionName;`);
+
+testTransform('export const { name1, name2: bar } = o;',
+  'TODO'
+);
+
+testTransform('export const [ name1, name2 ] = array;',
+  'TODO'
+);
+
+// ### Export list
+
 testTransform('let x = 1, y = 2; export { x, y }',
   'var x = 1; var y = 2; module.exports.x = x; module.exports.y = y;');
 
@@ -132,6 +168,8 @@ testTransform('let x = 1, y = 2; export { x as "name1", y as "name2"}',
 
 testTransform('let x = 1; export { x as default}',
   'var x = 1; module.exports.default = x;');
+
+// ### Default exports
 
 testTransform('export default expression;',
   'module.exports.default = expression;');
@@ -154,13 +192,23 @@ testTransform('export default class { /* … */ }',
 testTransform('export default function* () { /* … */ }',
   'module.exports.default = function* () {/* … */};');
 
+// ### Aggregating modules
+
 testTransform('export * from "my-module-name"',
-  `(function () {
-    const requireObject = require('my-module-name');
-    const propertyNames = Object.getOwnPropertyNames(requireObject);
+  `await (async function () {
+    const importedObject = await import('my-module-name');
+    const propertyNames = Object.getOwnPropertyNames(importedObject);
     for (const propertyName of propertyNames) {
       if (propertyName !== 'default') {
-        module.exports[propertyName] = requireObject[propertyName];
+        module.exports[propertyName] = importedObject[propertyName];
       }
     }
   })();`);
+
+testTransform('export * as name1 from "module-name";', 'TODO');
+
+testTransform('export { name1, /* …, */ nameN } from "module-name";', 'TODO');
+
+testTransform('export { import1 as name1, import2 as name2, /* …, */ nameN } from "module-name";', 'TODO');
+
+testTransform('export { default, /* …, */ } from "module-name";', 'TODO');

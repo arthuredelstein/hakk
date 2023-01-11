@@ -382,12 +382,12 @@ const handleExportDefaultDeclaration = (path) => {
 const handleExportAllDeclaration = (path) => {
   const moduleName = path.node.source.value;
   const outputAST = template.ast(
-    `(function () {
-      const requireObject = require('${moduleName}');
-      const propertyNames = Object.getOwnPropertyNames(requireObject);
+    `await (async function () {
+      const importedObject = await import('${moduleName}');
+      const propertyNames = Object.getOwnPropertyNames(importedObject);
       for (const propertyName of propertyNames) {
         if (propertyName !== 'default') {
-          module.exports[propertyName] = requireObject[propertyName];
+          module.exports[propertyName] = importedObject[propertyName];
         }
       }
     })();`);
