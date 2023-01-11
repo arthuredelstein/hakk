@@ -338,7 +338,7 @@ const objectVisitor = {
 
 const astCodeToAddToModuleExports = (identifier, localName) =>
   types.isStringLiteral(identifier)
-    ? template.ast(`module.exports['${identifier.name}'] = ${localName}`)
+    ? template.ast(`module.exports['${identifier.value}'] = ${localName}`)
     : template.ast(`module.exports.${identifier.name} = ${localName}`);
 
 const handleExportNameDeclaration = (path) => {
@@ -380,7 +380,18 @@ const handleExportDefaultDeclaration = (path) => {
 };
 
 const handleExportAllDeclaration = (path) => {
-
+  const moduleName = path.node.source.value;
+  const outputAST = template.ast(
+    `(function () {
+      const requireObject = require('${moduleName}');
+      const propertyNames = Object.getOwnPropertyNames(requireObject);
+      for (const propertyName of propertyNames) {
+        if (propertyName !== 'default') {
+          module.exports[propertyName] = requireObject[propertyName];
+        }
+      }
+    })();`);
+  path.replaceWith(outputAST);
 };
 
 const exportVisitor = {
