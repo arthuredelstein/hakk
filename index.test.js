@@ -133,6 +133,27 @@ testTransform('let x = 1, y = 2; export { x as "name1", y as "name2"}',
 testTransform('let x = 1; export { x as default}',
   'var x = 1; module.exports.default = x;');
 
+testTransform('export default expression;',
+  'module.exports.default = expression;');
+
+testTransform('export default function functionName() { /* … */ }',
+  'module.exports.default = function functionName() {/* … */};');
+
+testTransform('export default class ClassName { /* … */ }',
+  'module.exports.default = class ClassName {/* … */};');
+
+testTransform('export default function* generatorFunctionName() { /* … */ }',
+  'module.exports.default = function* generatorFunctionName() {/* … */};');
+
+testTransform('export default function () { /* … */ }',
+  'module.exports.default = function () {/* … */};');
+
+testTransform('export default class { /* … */ }',
+  'module.exports.default = class {/* … */};');
+
+testTransform('export default function* () { /* … */ }',
+  'module.exports.default = function* () {/* … */};');
+
 testTransform('export * from "my-module-name"',
   `(function () {
     const requireObject = require('my-module-name');
