@@ -148,11 +148,13 @@ testTransform('export function* generatorFunctionName() { /* … */ }',
   module.exports.generatorFunctionName = generatorFunctionName;`);
 
 testTransform('export const { name1, name2: bar } = o;',
-  `module.exports.name1 = o.name1;
+  `var { name1, name2: bar } = o;
+   module.exports.name1 = o.name1;
    module.exports.bar = o.name2;`);
 
 testTransform('export const [ name1, name2 ] = array;',
-  `module.exports.name1 = array[0];
+  `var [name1, name2] = array;
+   module.exports.name1 = array[0];
    module.exports.name2 = array[1];`);
 
 // ### Export list

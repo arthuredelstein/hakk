@@ -391,12 +391,26 @@ const handleExportNameDeclaration = (path) => {
   } else if (specifiers.length === 0 && declaration !== null) {
     outputASTs.push(declaration);
     if (types.isVariableDeclaration(declaration)) {
-      // TODO: destructuring exports, e.g.:
-      // `export const { name1, name2: bar } = o;`
-      // `export const [ name1, name2 ] = array;`
       for (const declarator of declaration.declarations) {
-        const resultsAST = astCodeToAddToModuleExports(declarator.id, declarator.id.name);
-        outputASTs.push(resultsAST);
+        if (types.isObjectPattern(declarator.id)) {
+          console.log("isObjectPattern");
+          const objectName = declarator.init.name;
+          for (const property of declarator.id.properties) {
+            const resultsAST = astCodeToAddToModuleExports(property.value, `${objectName}.${property.key.name}`);
+            outputASTs.push(resultsAST);
+          }
+        } else if (types.isArrayPattern(declarator.id)) {
+          let i = 0;
+          const arrayName = declarator.init.name;
+          for (const element of declarator.id.elements) {
+            const resultsAST = astCodeToAddToModuleExports(element, `${arrayName}[${i}]`);
+            outputASTs.push(resultsAST);
+            ++i;
+          }
+        } else if (types.isIdentifier(declarator.id)) {
+          const resultsAST = astCodeToAddToModuleExports(declarator.id, declarator.id.name);
+          outputASTs.push(resultsAST);
+        }
       }
     }
     if (types.isFunctionDeclaration(declaration) ||
