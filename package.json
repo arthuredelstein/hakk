@@ -4,7 +4,7 @@
   "description": "repl for hakking on node scripts",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test": "npx jest"
   },
   "author": "Arthur Edelstein",
   "license": "MIT",

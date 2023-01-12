@@ -341,16 +341,52 @@ const astCodeToAddToModuleExports = (identifier, localName) =>
     ? template.ast(`module.exports['${identifier.value}'] = ${localName}`)
     : template.ast(`module.exports.${identifier.name} = ${localName}`);
 
+const wildcardExport = (namespaceIdentifier) => {
+  const namespaceAccessorString = namespaceIdentifier
+    ? (types.isStringLiteral(namespaceIdentifier)
+      ? `['${namespaceIdentifier.value}']`
+      : `.${namespaceIdentifier.name}`)
+    : "";
+  return template.ast(
+    `const propertyNames = Object.getOwnPropertyNames(importedObject);
+     for (const propertyName of propertyNames) {
+       if (propertyName !== 'default') {
+         module.exports${namespaceAccessorString}[propertyName] = importedObject[propertyName];
+       }
+     }`);
+};
+
+const wrapImportedObject = (moduleName, asts) => {
+  const resultAST = template.ast(
+    `await (async function () {
+      const importedObject = await import('${moduleName}');
+    })();`);
+  resultAST.expression.argument.callee.body.body.push(...asts);
+  return resultAST;
+};
+
 const handleExportNameDeclaration = (path) => {
   const outputASTs = [];
   const specifiers = path.node.specifiers;
   const declaration = path.node.declaration;
-  if (specifiers && specifiers.length > 0 && declaration === null) {
+  if (specifiers && specifiers.length > 0 && (declaration === null || declaration === undefined)) {
+    let specifierASTs = [];
+    const source = path.node.source;
     for (const specifier of specifiers) {
       if (types.isExportSpecifier(specifier)) {
-        const resultsAST = astCodeToAddToModuleExports(specifier.exported, specifier.local.name);
-        outputASTs.push(resultsAST);
+        const localName = `${source ? "importedObject." : ""}${specifier.local.name}`;
+        const resultsAST = astCodeToAddToModuleExports(specifier.exported, localName);
+        specifierASTs.push(resultsAST);
+      } else if (types.isExportNamespaceSpecifier(specifier)) {
+        specifierASTs.push(...wildcardExport(specifier.exported));
       }
+    }
+    if (source) {
+      const moduleName = path.node.source.value;
+      const resultAST = wrapImportedObject(moduleName, specifierASTs);
+      outputASTs.push(resultAST);
+    } else {
+      outputASTs.push(...specifierASTs);
     }
   } else if (specifiers.length === 0 && declaration !== null) {
     outputASTs.push(declaration);
@@ -381,17 +417,8 @@ const handleExportDefaultDeclaration = (path) => {
 
 const handleExportAllDeclaration = (path) => {
   const moduleName = path.node.source.value;
-  const outputAST = template.ast(
-    `await (async function () {
-      const importedObject = await import('${moduleName}');
-      const propertyNames = Object.getOwnPropertyNames(importedObject);
-      for (const propertyName of propertyNames) {
-        if (propertyName !== 'default') {
-          module.exports[propertyName] = importedObject[propertyName];
-        }
-      }
-    })();`);
-  path.replaceWith(outputAST);
+  const lines = wildcardExport(null);
+  path.replaceWith(wrapImportedObject(moduleName, lines));
 };
 
 const exportVisitor = {

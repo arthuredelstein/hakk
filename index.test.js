@@ -148,12 +148,12 @@ testTransform('export function* generatorFunctionName() { /* … */ }',
   module.exports.generatorFunctionName = generatorFunctionName;`);
 
 testTransform('export const { name1, name2: bar } = o;',
-  'TODO'
-);
+  `module.exports.name1 = o.name1;
+   module.exports.bar = o.name2;`);
 
 testTransform('export const [ name1, name2 ] = array;',
-  'TODO'
-);
+  `module.exports.name1 = array[0];
+   module.exports.name2 = array[1];`);
 
 // ### Export list
 
@@ -195,7 +195,7 @@ testTransform('export default function* () { /* … */ }',
 // ### Aggregating modules
 
 testTransform('export * from "my-module-name"',
-  `await (async function () {
+  `await async function () {
     const importedObject = await import('my-module-name');
     const propertyNames = Object.getOwnPropertyNames(importedObject);
     for (const propertyName of propertyNames) {
@@ -203,12 +203,36 @@ testTransform('export * from "my-module-name"',
         module.exports[propertyName] = importedObject[propertyName];
       }
     }
-  })();`);
+  }();`);
 
-testTransform('export * as name1 from "module-name";', 'TODO');
+testTransform('export * as name1 from "module-name";',
+  `await async function () {
+    const importedObject = await import('module-name');
+    const propertyNames = Object.getOwnPropertyNames(importedObject);
+    for (const propertyName of propertyNames) {
+      if (propertyName !== 'default') {
+        module.exports.name1[propertyName] = importedObject[propertyName];
+      }
+    }
+  }();`);
 
-testTransform('export { name1, /* …, */ nameN } from "module-name";', 'TODO');
+testTransform('export { name1, /* …, */ nameN } from "module-name";',
+  `await async function () {
+    const importedObject = await import('module-name');
+    module.exports.name1 = importedObject.name1;
+    module.exports.nameN = importedObject.nameN;
+  }();`);
 
-testTransform('export { import1 as name1, import2 as name2, /* …, */ nameN } from "module-name";', 'TODO');
+testTransform('export { import1 as name1, import2 as name2, /* …, */ nameN } from "module-name";',
+  `await async function () {
+    const importedObject = await import('module-name');
+    module.exports.name1 = importedObject.import1;
+    module.exports.name2 = importedObject.import2;
+    module.exports.nameN = importedObject.nameN;
+}();`);
 
-testTransform('export { default, /* …, */ } from "module-name";', 'TODO');
+testTransform('export { default, /* …, */ } from "module-name";',
+  `await async function () {
+    const importedObject = await import('module-name');
+    module.exports.default = importedObject.default;
+}();`);
