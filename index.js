@@ -344,9 +344,9 @@ const astCodeToAddToModuleExports = (identifier, localName) =>
 const wildcardExport = (namespaceIdentifier) => {
   const namespaceAccessorString = namespaceIdentifier
     ? (types.isStringLiteral(namespaceIdentifier)
-      ? `['${namespaceIdentifier.value}']`
-      : `.${namespaceIdentifier.name}`)
-    : "";
+        ? `['${namespaceIdentifier.value}']`
+        : `.${namespaceIdentifier.name}`)
+    : '';
   return template.ast(
     `const propertyNames = Object.getOwnPropertyNames(importedObject);
      for (const propertyName of propertyNames) {
@@ -370,11 +370,11 @@ const handleExportNameDeclaration = (path) => {
   const specifiers = path.node.specifiers;
   const declaration = path.node.declaration;
   if (specifiers && specifiers.length > 0 && (declaration === null || declaration === undefined)) {
-    let specifierASTs = [];
+    const specifierASTs = [];
     const source = path.node.source;
     for (const specifier of specifiers) {
       if (types.isExportSpecifier(specifier)) {
-        const localName = `${source ? "importedObject." : ""}${specifier.local.name}`;
+        const localName = `${source ? 'importedObject.' : ''}${specifier.local.name}`;
         const resultsAST = astCodeToAddToModuleExports(specifier.exported, localName);
         specifierASTs.push(resultsAST);
       } else if (types.isExportNamespaceSpecifier(specifier)) {
@@ -393,7 +393,7 @@ const handleExportNameDeclaration = (path) => {
     if (types.isVariableDeclaration(declaration)) {
       for (const declarator of declaration.declarations) {
         if (types.isObjectPattern(declarator.id)) {
-          console.log("isObjectPattern");
+          console.log('isObjectPattern');
           const objectName = declarator.init.name;
           for (const property of declarator.id.properties) {
             const resultsAST = astCodeToAddToModuleExports(property.value, `${objectName}.${property.key.name}`);
