@@ -1,4 +1,4 @@
-const scopedEvaluator = () => {
+const scopedEvaluator = (filePath, dirPath) => {
   // Create a generator that reads a value on yield
   // evaluates it, and sends the result back.
   const generator = function* (exports, require, module, __filename, __dirname) {
@@ -16,7 +16,7 @@ const scopedEvaluator = () => {
     }
   };
   // Run the generator.
-  const iterator = generator();
+  const iterator = generator(null, null, null, filePath, dirPath);
   // Discard first empty value.
   iterator.next();
   // Return an evaluation function that
@@ -35,7 +35,7 @@ const scopedEvaluator = () => {
 };
 
 class HakkModule {
-  constructor() {
-    this.eval = scopedEvaluator();
+  constructor(filePath, dirPath) {
+    this.eval = scopedEvaluator(filePath, dirPath);
   }
 }

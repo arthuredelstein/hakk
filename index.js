@@ -552,11 +552,13 @@ const prepareAST = (code) => {
       objectVisitor, classVisitor, varVisitor]);
 };
 
+const evalInModule = (code) => `__module.eval(${JSON.stringify(code)})`;
+
 const prepareCode = (code) => {
   if (code.length === 0) {
     return '';
   } else {
-    return generate(prepareAST(code)).code;
+    return evalInModule(generate(prepareAST(code)).code);
   }
 };
 
@@ -602,19 +604,26 @@ const run = async (filename) => {
   const options = { useColors: true, prompt: `${filename}> ` };
   const replServer = new repl.REPLServer(options);
   const filenameFullPath = path.resolve(filename);
+  const dirPath = path.dirname(filenameFullPath);
   const historyDir = path.join(homedir, '.hakk', 'history');
   fs.mkdirSync(historyDir, { recursive: true });
   await new Promise(resolve => replServer.setupHistory(path.join(historyDir, sha256(filenameFullPath)), resolve));
-  // Transform user input before evaluation.
-  useEvalWithCodeModifications(replServer, prepareCode);
-  const setGlobalsCommand = `
+  const hakkModuleCode = fs.readFileSync("./hakk_module.js").toString();
+  evaluateCodeInRepl(replServer, hakkModuleCode, "");
+  // Prepare the repl for a source file.
+  /*const setGlobalsCommand = `
     __filename = '${filenameFullPath}';
     __dirname = '${path.dirname(filenameFullPath)}';
     let exports = {};
     var _IMPORT_ = { meta: ''};
+  `;*/
+  const setupFirstModule = `
+    var __module = new HakkModule('${filenameFullPath}', '${dirPath}');
   `;
-  // Prepare the repl for a source file.
-  evaluateCodeInRepl(replServer, prepareCode(setGlobalsCommand), filename);
+  evaluateCodeInRepl(replServer, setupFirstModule, ""); //setupFirstModule, "");
+  // Transform user input before evaluation.
+  useEvalWithCodeModifications(replServer, prepareCode);
+  //evaluateCodeInRepl(replServer, prepareCode(setGlobalsCommand), filename);
   // Evaluate the source file once at start, and then every time it changes.
   watchForFileChanges(
     filename, 100,
