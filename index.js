@@ -558,9 +558,11 @@ const prepareCode = (code) => {
   if (code.length === 0) {
     return '';
   } else {
-    return evalInModule(generate(prepareAST(code)).code);
+    return generate(prepareAST(code)).code;
   }
 };
+
+const prepareCodeForModule = (code) => evalInModule(prepareCode(code));
 
 // Returns true if the inputted code is incomplete.
 const unexpectedNewLine = (code, e) =>
@@ -622,7 +624,7 @@ const run = async (filename) => {
   `;
   evaluateCodeInRepl(replServer, setupFirstModule, ""); //setupFirstModule, "");
   // Transform user input before evaluation.
-  useEvalWithCodeModifications(replServer, prepareCode);
+  useEvalWithCodeModifications(replServer, prepareCodeForModule);
   //evaluateCodeInRepl(replServer, prepareCode(setGlobalsCommand), filename);
   // Evaluate the source file once at start, and then every time it changes.
   watchForFileChanges(
