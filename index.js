@@ -552,7 +552,7 @@ const prepareAST = (code) => {
       objectVisitor, classVisitor, varVisitor]);
 };
 
-const evalInModule = (code) => `__module.eval(${JSON.stringify(code)})`;
+const evalInModule = (code) => `await __module.eval(${JSON.stringify(code)})`;
 
 const prepareCode = (code) => {
   if (code.length === 0) {

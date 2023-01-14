@@ -1,4 +1,4 @@
-const scopedEvaluator = (filePath, dirPath) => {
+const scopedEvaluator = (the_exports, require, module, filePath, dirPath) => {
   // Create a generator that reads a value on yield
   // evaluates it, and sends the result back.
   const generator = function* (exports, require, module, __filename, __dirname) {
@@ -16,7 +16,7 @@ const scopedEvaluator = (filePath, dirPath) => {
     }
   };
   // Run the generator.
-  const iterator = generator(null, null, null, filePath, dirPath);
+  const iterator = generator(the_exports, require, module, filePath, dirPath);
   // Discard first empty value.
   iterator.next();
   // Return an evaluation function that
@@ -34,8 +34,29 @@ const scopedEvaluator = (filePath, dirPath) => {
   };
 };
 
+const moduleMap = new Map();
+
+var originalRequire = require;
+var require = (path) => {
+  if (path.startsWith(".")) {
+    console.log({ path });
+    let module;
+    if (moduleMap.has(path)) {
+      module = moduleMap.has(path);
+    } else {
+      module = new HakkModule(path);
+      moduleMap.add(path, module);
+    }
+  } else {
+    return originalRequire(path);
+  }
+};
+
+var exports = {};
+
 class HakkModule {
   constructor(filePath, dirPath) {
-    this.eval = scopedEvaluator(filePath, dirPath);
+    this.eval = scopedEvaluator(exports, require, { exports }, filePath, dirPath);
   }
 }
+
