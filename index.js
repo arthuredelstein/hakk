@@ -11,6 +11,7 @@ const types = require('@babel/types');
 const { createHash } = require('node:crypto');
 const homedir = require('os').homedir();
 const staticBlockPlugin = require('@babel/plugin-proposal-class-static-block').default;
+const hakkModules = require('./hakk_modules.js');
 
 // ## Utility functions
 
@@ -527,10 +528,10 @@ const evaluateCodeInRepl = (replServer, code, filename) =>
       });
   });
 
-const evaluateChangedCodeFragments = async (replServer, ast, filename) => {
+const evaluateChangedCodeFragments = async (replServer, ast, path) => {
   const fragments = changedNodesToCodeFragments(ast.program.body);
   for (const fragment of fragments) {
-    await evaluateCodeInRepl(replServer, fragment, filename);
+    await evaluateCodeInRepl(replServer, fragment, path);
   }
 };
 
@@ -552,8 +553,6 @@ const prepareAST = (code) => {
       objectVisitor, classVisitor, varVisitor]);
 };
 
-const evalInModule = (code) => `await __module.eval(${JSON.stringify(code)})`;
-
 const prepareCode = (code) => {
   if (code.length === 0) {
     return '';
@@ -562,7 +561,9 @@ const prepareCode = (code) => {
   }
 };
 
-const prepareCodeForModule = (code) => evalInModule(prepareCode(code));
+// const wrapInModuleEval = (code) => `__module.eval(${JSON.stringify(code)})`;
+
+// const prepareCodeForModule = (code) => wrapInModuleEval(prepareCode(code));
 
 // Returns true if the inputted code is incomplete.
 const unexpectedNewLine = (code, e) =>
@@ -582,15 +583,18 @@ const unterminatedTemplate = (code, e) =>
 const incompleteCode = (code, e) =>
   unexpectedNewLine(code, e) || unterminatedTemplate(code, e);
 
-const useEvalWithCodeModifications = (replServer, modifierFunction) => {
-  const originalEval = replServer.eval;
-  const newEval = (code, context, filename, callback) => {
+let currentFilePath = undefined;
+
+const setupReplEval = (replServer) => {
+  replServer.eval = (code, context, filename, callback) => {
     try {
-      const modifiedCode = modifierFunction(code);
+      const modifiedCode = prepareCode(code);
       if (modifiedCode.trim().length === 0) {
         return callback(null);
       }
-      originalEval(modifiedCode, context, filename, callback);
+      //console.log(currentFilePath);
+      const result = hakkModules.evalCodeInModule(currentFilePath, modifiedCode);
+      return callback(null, result);
     } catch (e) {
       if (incompleteCode(code, e)) {
         return callback(new repl.Recoverable(e));
@@ -599,19 +603,24 @@ const useEvalWithCodeModifications = (replServer, modifierFunction) => {
       }
     }
   };
-  replServer.eval = newEval;
+};
+
+const readSourceAndPrepareCode = (filePath) => {
+  const code = fs.readFileSync(filePath).toString();
+  return prepareCode(code);
 };
 
 const run = async (filename) => {
   const options = { useColors: true, prompt: `${filename}> ` };
   const replServer = new repl.REPLServer(options);
   const filenameFullPath = path.resolve(filename);
+  currentFilePath = filenameFullPath;
   const dirPath = path.dirname(filenameFullPath);
   const historyDir = path.join(homedir, '.hakk', 'history');
   fs.mkdirSync(historyDir, { recursive: true });
   await new Promise(resolve => replServer.setupHistory(path.join(historyDir, sha256(filenameFullPath)), resolve));
-  const hakkModuleCode = fs.readFileSync("./hakk_module.js").toString();
-  evaluateCodeInRepl(replServer, hakkModuleCode, "");
+  //const hakkModuleCode = fs.readFileSync("./hakk_module.js").toString();
+  //evaluateCodeInRepl(replServer, hakkModuleCode, "");
   // Prepare the repl for a source file.
   /*const setGlobalsCommand = `
     __filename = '${filenameFullPath}';
@@ -619,19 +628,21 @@ const run = async (filename) => {
     let exports = {};
     var _IMPORT_ = { meta: ''};
   `;*/
-  const setupFirstModule = `
-    var __module = new HakkModule('${filenameFullPath}', '${dirPath}');
-  `;
-  evaluateCodeInRepl(replServer, setupFirstModule, ""); //setupFirstModule, "");
+  /*  const setupFirstModule = `
+      var __module = new HakkModule('${filenameFullPath}', '${dirPath}');
+    `;
+    evaluateCodeInRepl(replServer, setupFirstModule, "");*/
   // Transform user input before evaluation.
-  useEvalWithCodeModifications(replServer, prepareCodeForModule);
+  hakkModules.setCodeFetcher(readSourceAndPrepareCode);
+  setupReplEval(replServer);
   //evaluateCodeInRepl(replServer, prepareCode(setGlobalsCommand), filename);
   // Evaluate the source file once at start, and then every time it changes.
   watchForFileChanges(
-    filename, 100,
+    filenameFullPath, 100,
     async (code) => {
       try {
-        await evaluateChangedCodeFragments(replServer, prepareAST(code), filename);
+        // TODO: evaluate changed prepared code in modules
+        // await evaluateChangedCodeFragments(replServer, prepareAST(code), filenameFullPath);
         // Trigger preview update in case the file has updated a function
         // that will produce a new result for the pending REPL input.
         replServer._ttyWrite(null, {});

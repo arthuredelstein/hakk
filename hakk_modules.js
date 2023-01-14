@@ -1,4 +1,3 @@
-const fs = require('node:fs');
 const path = require('node:path');
 
 const scopedEvaluator = (the_exports, require, module, filePath, dirPath) => {
@@ -37,50 +36,51 @@ const scopedEvaluator = (the_exports, require, module, filePath, dirPath) => {
   };
 };
 
+var originalRequire = require;
+
+var evalCodeInModule;
+
 const hakkModuleMap = new Map();
 
-const listOfModules = hakkModuleMap.keys();
-
+let fetchCode = undefined;
 
 class HakkModule {
   constructor(filePath) {
-    const dirPath = path.dirname(filePath);
-    this.eval = scopedEvaluator(this.exports, require, { exports: this.exports }, filePath, dirPath);
+    this.filePath = filePath;
+    this.dirPath = path.dirname(filePath);
+    this.eval = scopedEvaluator(this.exports, (path) => this.require(path), { exports: this.exports }, this.filePath, this.dirPath);
   }
+  require (requirePath) {
+    if (requirePath.startsWith(".")) {
+      const fullRequirePath = path.resolve(this.dirPath, requirePath);
+      const code = fetchCode(fullRequirePath);
+      const module = getModule(fullRequirePath);
+      module.eval(code);
+      return module.exports;
+    } else {
+      return originalRequire(requirePath);
+    }
+  };
   exports = {};
-  requireHandler = null;
 }
 
-const getModule = (path) => {
-  let module;
+var getModule = (path) => {
   if (hakkModuleMap.has(path)) {
-    hakkModuleMap.get(path);
+    return hakkModuleMap.get(path);
   } else {
-    module = new HakkModule(path);
+    const module = new HakkModule(path);
     hakkModuleMap.set(path, module);
+    return module;
   }
-  return module;
 };
 
-const evalCodeInModule = (path, code) => {
+evalCodeInModule = (path, code) => {
   const module = getModule(path);
-  module.eval(code);
+  return module.eval(code);
 };
 
-var originalRequire = require;
-var require = (path) => {
-  if (path.startsWith(".")) {
-    const code = requireHandler(path);
-    evalCodeInModule(path, code);
-  } else {
-    return originalRequire(path);
-  }
+const setCodeFetcher = (fetcherFunction) => {
+  fetchCode = fetcherFunction;
 };
 
-let requireHandler = undefined;
-
-const setRequireHandler = (handlerFunction) => {
-  requireHandler = handlerFunction;
-};
-
-module.exports = { evalCodeInModule, setRequireHandler };
+module.exports = { evalCodeInModule, setCodeFetcher };

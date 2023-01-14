@@ -4,7 +4,7 @@ let x = 0;
 
 let y = 10;
 
-console.log(__dirname, __filename);
+console.log("Hello from", { __dirname, __filename });
 
 const bump = () => {
   // console.log"hello there, bump!");
@@ -145,3 +145,5 @@ const join = (a, b) => {
 //if (import.meta === "blah") {
 //  console.log("hi");
 //}
+
+exports.reverse = reverse;
