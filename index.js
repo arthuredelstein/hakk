@@ -611,7 +611,6 @@ const run = async (filename) => {
   replServer = new repl.REPLServer(options);
   const filenameFullPath = path.resolve(filename);
   currentReplFilePath = filenameFullPath;
-  const dirPath = path.dirname(filenameFullPath);
   const historyDir = path.join(homedir, '.hakk', 'history');
   fs.mkdirSync(historyDir, { recursive: true });
   await new Promise(resolve => replServer.setupHistory(path.join(historyDir, sha256(filenameFullPath)), resolve));
@@ -619,9 +618,6 @@ const run = async (filename) => {
   hakkModules.setModuleLoader(loadModule);
   loadModule(filenameFullPath);
   setupReplEval(replServer);
-  //evaluateCodeInRepl(replServer, prepareCode(setGlobalsCommand), filename);
-  // Evaluate the source file once at start, and then every time it changes.
-
 };
 
 module.exports = { run, prepareCode };
