@@ -516,19 +516,7 @@ const changedNodesToCodeFragments = (nodes, path) => {
   previousNodesByFile.set(path, currentNodes);
   return [].concat(toRemove, toWrite);
 };
-/*
-const evaluateCodeInRepl = (replServer, code, filename) =>
-  new Promise((resolve, reject) => {
-    replServer.eval(code, replServer.context, filename,
-      (err, result) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(result);
-        }
-      });
-  });
-*/
+
 const evaluateChangedCodeFragments = (ast, path) => {
   const codeFragments = changedNodesToCodeFragments(ast.program.body, path);
   for (const codeFragment of codeFragments) {
@@ -561,10 +549,6 @@ const prepareCode = (code) => {
     return generate(prepareAST(code)).code;
   }
 };
-
-// const wrapInModuleEval = (code) => `__module.eval(${JSON.stringify(code)})`;
-
-// const prepareCodeForModule = (code) => wrapInModuleEval(prepareCode(code));
 
 // Returns true if the inputted code is incomplete.
 const unexpectedNewLine = (code, e) =>
@@ -631,19 +615,6 @@ const run = async (filename) => {
   const historyDir = path.join(homedir, '.hakk', 'history');
   fs.mkdirSync(historyDir, { recursive: true });
   await new Promise(resolve => replServer.setupHistory(path.join(historyDir, sha256(filenameFullPath)), resolve));
-  //const hakkModuleCode = fs.readFileSync("./hakk_module.js").toString();
-  //evaluateCodeInRepl(replServer, hakkModuleCode, "");
-  // Prepare the repl for a source file.
-  /*const setGlobalsCommand = `
-    __filename = '${filenameFullPath}';
-    __dirname = '${path.dirname(filenameFullPath)}';
-    let exports = {};
-    var _IMPORT_ = { meta: ''};
-  `;*/
-  /*  const setupFirstModule = `
-      var __module = new HakkModule('${filenameFullPath}', '${dirPath}');
-    `;
-    evaluateCodeInRepl(replServer, setupFirstModule, "");*/
   // Transform user input before evaluation.
   hakkModules.setModuleLoader(loadModule);
   loadModule(filenameFullPath);
