@@ -14,7 +14,7 @@ const staticBlockPlugin = require('@babel/plugin-proposal-class-static-block').d
 
 // ## Utility functions
 
-// Ensure we allow 'import' keyword.
+// Parse JS code into a babel ast.
 const parse = (code) => parser.parse(code, { sourceType: 'module' });
 
 const watchForFileChanges = (path, interval, callback) => {
@@ -344,8 +344,8 @@ const astCodeToAddToModuleExports = (identifier, localName) =>
 const wildcardExport = (namespaceIdentifier) => {
   const namespaceAccessorString = namespaceIdentifier
     ? (types.isStringLiteral(namespaceIdentifier)
-        ? `['${namespaceIdentifier.value}']`
-        : `.${namespaceIdentifier.name}`)
+      ? `['${namespaceIdentifier.value}']`
+      : `.${namespaceIdentifier.name}`)
     : '';
   return template.ast(
     `const propertyNames = Object.getOwnPropertyNames(importedObject);
