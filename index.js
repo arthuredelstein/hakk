@@ -20,15 +20,15 @@ const parse = (code) => parser.parse(code, { sourceType: 'module' });
 
 const watchForFileChanges = (path, interval, callback) => {
   const readAndCallback = async () => {
-    const contents = await fsPromises.readFile(path, { encoding: 'utf8' });
-    await callback(contents);
+    const contents = fs.readFileSync(path, { encoding: 'utf8' });
+    callback(contents);
   };
   readAndCallback();
   fs.watchFile(
     path, { interval, persistent: false },
-    async (current, previous) => {
+    (current, previous) => {
       if (current.mtime !== previous.mtime) {
-        await readAndCallback();
+        readAndCallback();
       }
     });
 };
@@ -477,7 +477,7 @@ const hoistTopLevelVars = (ast) => {
 };
 */
 
-let previousNodes = new Map();
+let previousNodesByFile = new Map();
 
 // TODO: Get source mapping with something like:
 // generate(ast, {sourceMaps: true, sourceFileName: "test"})
@@ -487,9 +487,10 @@ let previousNodes = new Map();
 // and https://www.npmjs.com/package/source-map-support ?
 // How do these work? See also https://v8.dev/docs/stack-trace-api
 
-const changedNodesToCodeFragments = (nodes) => {
+const changedNodesToCodeFragments = (nodes, path) => {
   const toWrite = [];
   const toRemove = [];
+  const previousNodes = previousNodesByFile.get(path) ?? new Map();
   const currentNodes = new Map();
   const updatedParentFragments = new Set();
   for (const node of nodes) {
@@ -512,10 +513,10 @@ const changedNodesToCodeFragments = (nodes) => {
       toRemove.push(node._removeCode);
     }
   }
-  previousNodes = currentNodes;
+  previousNodesByFile.set(path, currentNodes);
   return [].concat(toRemove, toWrite);
 };
-
+/*
 const evaluateCodeInRepl = (replServer, code, filename) =>
   new Promise((resolve, reject) => {
     replServer.eval(code, replServer.context, filename,
@@ -527,11 +528,11 @@ const evaluateCodeInRepl = (replServer, code, filename) =>
         }
       });
   });
-
-const evaluateChangedCodeFragments = async (replServer, ast, path) => {
-  const fragments = changedNodesToCodeFragments(ast.program.body);
-  for (const fragment of fragments) {
-    await evaluateCodeInRepl(replServer, fragment, path);
+*/
+const evaluateChangedCodeFragments = (ast, path) => {
+  const codeFragments = changedNodesToCodeFragments(ast.program.body, path);
+  for (const codeFragment of codeFragments) {
+    hakkModules.evalCodeInModule(codeFragment, path);
   }
 };
 
@@ -583,7 +584,7 @@ const unterminatedTemplate = (code, e) =>
 const incompleteCode = (code, e) =>
   unexpectedNewLine(code, e) || unterminatedTemplate(code, e);
 
-let currentFilePath = undefined;
+let currentReplFilePath = undefined;
 
 const setupReplEval = (replServer) => {
   replServer.eval = (code, context, filename, callback) => {
@@ -592,8 +593,7 @@ const setupReplEval = (replServer) => {
       if (modifiedCode.trim().length === 0) {
         return callback(null);
       }
-      //console.log(currentFilePath);
-      const result = hakkModules.evalCodeInModule(currentFilePath, modifiedCode);
+      const result = hakkModules.evalCodeInModule(modifiedCode, currentReplFilePath);
       return callback(null, result);
     } catch (e) {
       if (incompleteCode(code, e)) {
@@ -605,16 +605,28 @@ const setupReplEval = (replServer) => {
   };
 };
 
-const readSourceAndPrepareCode = (filePath) => {
-  const code = fs.readFileSync(filePath).toString();
-  return prepareCode(code);
+let replServer;
+
+const loadModule = (filenameFullPath) => {
+  watchForFileChanges(
+    filenameFullPath, 100,
+    (code) => {
+      try {
+        evaluateChangedCodeFragments(prepareAST(code), filenameFullPath);
+        // Trigger preview update in case the file has updated a function
+        // that will produce a new result for the pending REPL input.
+        replServer._ttyWrite(null, {});
+      } catch (e) {
+        console.log(e);
+      }
+    });
 };
 
 const run = async (filename) => {
   const options = { useColors: true, prompt: `${filename}> ` };
-  const replServer = new repl.REPLServer(options);
+  replServer = new repl.REPLServer(options);
   const filenameFullPath = path.resolve(filename);
-  currentFilePath = filenameFullPath;
+  currentReplFilePath = filenameFullPath;
   const dirPath = path.dirname(filenameFullPath);
   const historyDir = path.join(homedir, '.hakk', 'history');
   fs.mkdirSync(historyDir, { recursive: true });
@@ -633,23 +645,12 @@ const run = async (filename) => {
     `;
     evaluateCodeInRepl(replServer, setupFirstModule, "");*/
   // Transform user input before evaluation.
-  hakkModules.setCodeFetcher(readSourceAndPrepareCode);
+  hakkModules.setModuleLoader(loadModule);
+  loadModule(filenameFullPath);
   setupReplEval(replServer);
   //evaluateCodeInRepl(replServer, prepareCode(setGlobalsCommand), filename);
   // Evaluate the source file once at start, and then every time it changes.
-  watchForFileChanges(
-    filenameFullPath, 100,
-    async (code) => {
-      try {
-        // TODO: evaluate changed prepared code in modules
-        // await evaluateChangedCodeFragments(replServer, prepareAST(code), filenameFullPath);
-        // Trigger preview update in case the file has updated a function
-        // that will produce a new result for the pending REPL input.
-        replServer._ttyWrite(null, {});
-      } catch (e) {
-        console.log(e);
-      }
-    });
+
 };
 
 module.exports = { run, prepareCode };

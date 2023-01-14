@@ -42,26 +42,25 @@ var evalCodeInModule;
 
 const hakkModuleMap = new Map();
 
-let fetchCode = undefined;
+let loadModule = undefined;
 
 class HakkModule {
   constructor(filePath) {
     this.filePath = filePath;
     this.dirPath = path.dirname(filePath);
+    this.exports = {};
     this.eval = scopedEvaluator(this.exports, (path) => this.require(path), { exports: this.exports }, this.filePath, this.dirPath);
   }
   require (requirePath) {
     if (requirePath.startsWith(".")) {
       const fullRequirePath = path.resolve(this.dirPath, requirePath);
-      const code = fetchCode(fullRequirePath);
+      loadModule(fullRequirePath);
       const module = getModule(fullRequirePath);
-      module.eval(code);
       return module.exports;
     } else {
       return originalRequire(requirePath);
     }
   };
-  exports = {};
 }
 
 var getModule = (path) => {
@@ -74,13 +73,13 @@ var getModule = (path) => {
   }
 };
 
-evalCodeInModule = (path, code) => {
-  const module = getModule(path);
+evalCodeInModule = (code, modulePath) => {
+  const module = getModule(modulePath);
   return module.eval(code);
 };
 
-const setCodeFetcher = (fetcherFunction) => {
-  fetchCode = fetcherFunction;
+const setModuleLoader = (moduleLoaderFunction) => {
+  loadModule = moduleLoaderFunction;
 };
 
-module.exports = { evalCodeInModule, setCodeFetcher };
+module.exports = { evalCodeInModule, setModuleLoader };
