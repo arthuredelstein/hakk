@@ -146,13 +146,13 @@ const modulePathManager = {
 };
 
 const setupReplEval = (replServer) => {
-  replServer.eval = (code, context, filename, callback) => {
+  replServer.eval = async (code, context, filename, callback) => {
     try {
       const modifiedCode = prepareCode(code);
       if (modifiedCode.trim().length === 0) {
         return callback(null);
       }
-      const result = hakkModules.evalCodeInModule(
+      const result = await hakkModules.evalCodeInModule(
         modifiedCode, modulePathManager.current());
       return callback(null, result);
     } catch (e) {

@@ -4,7 +4,7 @@ const { Module } = require('node:module');
 const scopedEvaluator = (the_exports, require, module, filePath, dirPath) => {
   // Create a generator that reads a value on yield
   // evaluates it, and sends the result back.
-  const generator = function* (exports, require, module, __filename, __dirname) {
+  const generator = async function* (exports, require, module, __filename, __dirname) {
     let valueToSend;
     while (true) {
       const receivedValue = yield valueToSend;
@@ -27,8 +27,8 @@ const scopedEvaluator = (the_exports, require, module, filePath, dirPath) => {
   // run in the generator scope.
   // If evaluation causes an error, then throw
   // that error instead.
-  return function (code) {
-    const { result, error } = iterator.next(code).value;
+  return async function (code) {
+    const { result, error } = (await iterator.next(code)).value;
     if (error) {
       throw error;
     } else {
@@ -50,7 +50,11 @@ class HakkModule {
     this.filePath = filePath;
     this.dirPath = path.dirname(filePath);
     this.exports = {};
-    this.eval = scopedEvaluator(this.exports, (path) => this.require(path), { exports: this.exports }, this.filePath, this.dirPath);
+  }
+  static async createModule (filePath) {
+    const module = new HakkModule(filePath);
+    module.eval = scopedEvaluator(this.exports, (path) => module.require(path), { exports: module.exports }, module.filePath, module.dirPath);
+    return module;
   }
   require (requirePath) {
     const fullRequirePath = Module._resolveFilename(
@@ -66,19 +70,19 @@ class HakkModule {
   };
 }
 
-var getModule = (path) => {
+var getModule = async (path) => {
   if (hakkModuleMap.has(path)) {
     return hakkModuleMap.get(path);
   } else {
-    const module = new HakkModule(path);
+    const module = await HakkModule.createModule(path);
     hakkModuleMap.set(path, module);
     return module;
   }
 };
 
-evalCodeInModule = (code, modulePath) => {
-  const module = getModule(modulePath);
-  return module.eval(code);
+evalCodeInModule = async (code, modulePath) => {
+  const module = await getModule(modulePath);
+  return await module.eval(code);
 };
 
 const setModuleLoader = (moduleLoaderFunction) => {
