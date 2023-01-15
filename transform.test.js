@@ -1,4 +1,4 @@
-const { prepareCode } = require('./index.js');
+const { prepareCode } = require('./transform.js');
 
 const cleanString = (x) =>
   x.replace(/\s+/g, ' ');
