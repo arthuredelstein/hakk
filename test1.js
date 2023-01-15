@@ -1,10 +1,12 @@
 const fs = require('fs');
 
+const test2 = require('./test2.js');
+
 let x = 0;
 
 let y = 10;
 
-console.log("Hello from", { __dirname, __filename });
+//console.log("Hello from", { __dirname, __filename });
 
 const bump = () => {
   // console.log"hello there, bump!");
@@ -145,5 +147,7 @@ const join = (a, b) => {
 //if (import.meta === "blah") {
 //  console.log("hi");
 //}
+
+test2.bar();
 
 exports.join = join;

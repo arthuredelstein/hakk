@@ -394,7 +394,6 @@ const handleExportNameDeclaration = (path) => {
     if (types.isVariableDeclaration(declaration)) {
       for (const declarator of declaration.declarations) {
         if (types.isObjectPattern(declarator.id)) {
-          console.log('isObjectPattern');
           const objectName = declarator.init.name;
           for (const property of declarator.id.properties) {
             const resultsAST = astCodeToAddToModuleExports(property.value, `${objectName}.${property.key.name}`);
@@ -577,7 +576,8 @@ const setupReplEval = (replServer) => {
       if (modifiedCode.trim().length === 0) {
         return callback(null);
       }
-      const result = hakkModules.evalCodeInModule(modifiedCode, currentReplFilePath);
+      const result = hakkModules.evalCodeInModule(
+        modifiedCode, currentReplFilePath);
       return callback(null, result);
     } catch (e) {
       if (incompleteCode(code, e)) {
@@ -589,9 +589,16 @@ const setupReplEval = (replServer) => {
   };
 };
 
-let replServer;
+let replServer = undefined;
+
+const modulePaths = [];
+
+let currentReplPathIndex = 0;
 
 const loadModule = (filenameFullPath) => {
+  if (!modulePaths.includes(filenameFullPath)) {
+    modulePaths.push(filenameFullPath);
+  }
   watchForFileChanges(
     filenameFullPath, 100,
     (code) => {
@@ -599,25 +606,58 @@ const loadModule = (filenameFullPath) => {
         evaluateChangedCodeFragments(prepareAST(code), filenameFullPath);
         // Trigger preview update in case the file has updated a function
         // that will produce a new result for the pending REPL input.
-        replServer._ttyWrite(null, {});
+        if (replServer) {
+          replServer._ttyWrite(null, {});
+        }
       } catch (e) {
         console.log(e);
       }
     });
 };
 
+const historyDir = () => {
+  const histDir = path.join(homedir, '.hakk', 'history');
+  fs.mkdirSync(histDir, { recursive: true });
+  return histDir;
+};
+
+const fileBasedPrompt = (filenameFullPath) => {
+  const filename = path.basename(filenameFullPath);
+  return `${filename}> `;
+};
+
+const createReplServer = async (filenameFullPath) => {
+  const options = { useColors: true, prompt: fileBasedPrompt(filenameFullPath) };
+  const replServer = new repl.REPLServer(options);
+  await new Promise(resolve => replServer.setupHistory(path.join(historyDir(), sha256(filenameFullPath)), resolve));
+  setupReplEval(replServer, filenameFullPath);
+  const original_ttyWrite = replServer._ttyWrite;
+  replServer._ttyWrite = async (d, key) => {
+    if (key.meta === true && key.shift === false && key.ctrl === false) {
+      if (key.name === "b") {
+        nextRepl(replServer, false);
+      } else if (key.name === "f") {
+        nextRepl(replServer, true);
+      }
+    }
+    original_ttyWrite(d, key);
+  };
+  return replServer;
+};
+
+nextRepl = (replServer, forward) => {
+  currentReplPathIndex = (currentReplPathIndex + modulePaths.length + (forward ? 1 : -1)) % modulePaths.length;
+  currentReplFilePath = modulePaths[currentReplPathIndex];
+  replServer.setPrompt(fileBasedPrompt(currentReplFilePath));
+  replServer.prompt();
+};
+
 const run = async (filename) => {
-  const options = { useColors: true, prompt: `${filename}> ` };
-  replServer = new repl.REPLServer(options);
+  hakkModules.setModuleLoader(loadModule);
   const filenameFullPath = path.resolve(filename);
   currentReplFilePath = filenameFullPath;
-  const historyDir = path.join(homedir, '.hakk', 'history');
-  fs.mkdirSync(historyDir, { recursive: true });
-  await new Promise(resolve => replServer.setupHistory(path.join(historyDir, sha256(filenameFullPath)), resolve));
-  // Transform user input before evaluation.
-  hakkModules.setModuleLoader(loadModule);
+  replServer = await createReplServer(filenameFullPath);
   loadModule(filenameFullPath);
-  setupReplEval(replServer);
 };
 
 module.exports = { run, prepareCode };
