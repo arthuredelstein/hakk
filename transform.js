@@ -425,6 +425,24 @@ const exportVisitor = {
   }
 };
 
+/*
+// TODO:: Detect use of top-level await and if it's
+// found, wrap everything but the vars in (async () => { ... })()
+const hoistTopLevelVars = (ast) => {
+  traverse(ast, {
+    Program (path) {
+      const varNames = [];
+      hoistVariables(path, varData => varNames.push(varData.name));
+      for (const varName of varNames) {
+        const varDeclarationAST = template.ast(`var ${varName};`);
+        path.node.body.unshift(varDeclarationAST);
+      }
+    }
+  });
+  return ast;
+};
+*/
+
 const transform = (ast, visitors) => {
   for (const visitor of visitors) {
     traverse(ast, visitor);
