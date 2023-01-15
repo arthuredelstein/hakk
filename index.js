@@ -135,6 +135,8 @@ const modulePathManager = {
     if (!this.modulePaths.includes(path)) {
       throw new Error("module not found");
     }
+    // Step forward one step, so user can hit "back" to return
+    this.forward();
     this.modulePaths = this.modulePaths.filter(p => p !== path);
     this.modulePaths.unshift(path);
   },
