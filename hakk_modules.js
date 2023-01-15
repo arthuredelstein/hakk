@@ -50,7 +50,13 @@ class HakkModule {
     this.filePath = filePath;
     this.dirPath = path.dirname(filePath);
     this.exports = {};
-    this.eval = scopedEvaluator(this.exports, (path) => this.require(path), { exports: this.exports }, this.filePath, this.dirPath);
+    const thisModule = this;
+    this.eval = scopedEvaluator(
+      thisModule.exports,
+      (path) => thisModule.require(path),
+      thisModule,
+      thisModule.filePath,
+      thisModule.dirPath);
   }
   require (requirePath) {
     const fullRequirePath = Module._resolveFilename(
