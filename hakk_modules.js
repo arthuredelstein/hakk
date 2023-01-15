@@ -1,4 +1,5 @@
 const path = require('node:path');
+const { Module } = require('node:module');
 
 const scopedEvaluator = (the_exports, require, module, filePath, dirPath) => {
   // Create a generator that reads a value on yield
@@ -52,13 +53,15 @@ class HakkModule {
     this.eval = scopedEvaluator(this.exports, (path) => this.require(path), { exports: this.exports }, this.filePath, this.dirPath);
   }
   require (requirePath) {
-    if (requirePath.startsWith(".")) {
-      const fullRequirePath = path.resolve(this.dirPath, requirePath);
+    const fullRequirePath = Module._resolveFilename(
+      requirePath, null, false, { paths: [this.dirPath] });
+    if (requirePath.startsWith("./") || requirePath.startsWith("../") ||
+      requirePath.startsWith("/")) {
       loadModule(fullRequirePath);
       const module = getModule(fullRequirePath);
       return module.exports;
     } else {
-      return originalRequire(requirePath);
+      return originalRequire(fullRequirePath);
     }
   };
 }
