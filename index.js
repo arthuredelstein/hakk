@@ -33,24 +33,6 @@ const sha256 = (text) =>
 
 // ## REPL setup
 
-/*
-// TODO:: Detect use of top-level await and if it's
-// found, wrap everything but the vars in (async () => { ... })()
-const hoistTopLevelVars = (ast) => {
-  traverse(ast, {
-    Program (path) {
-      const varNames = [];
-      hoistVariables(path, varData => varNames.push(varData.name));
-      for (const varName of varNames) {
-        const varDeclarationAST = template.ast(`var ${varName};`);
-        path.node.body.unshift(varDeclarationAST);
-      }
-    }
-  });
-  return ast;
-};
-*/
-
 const previousNodesByFile = new Map();
 
 // TODO: Get source mapping with something like:
@@ -142,6 +124,9 @@ const modulePathManager = {
   },
   current () {
     return this.modulePaths[0];
+  },
+  has (path) {
+    return this.modulePaths.includes(path);
   }
 };
 
@@ -176,6 +161,10 @@ const updatePrompt = () => {
 };
 
 const loadModule = (filenameFullPath) => {
+  if (modulePathManager.has(filenameFullPath)) {
+    // Already loaded module and watching it.
+    return;
+  }
   modulePathManager.add(filenameFullPath);
   watchForFileChanges(
     filenameFullPath, 100,
