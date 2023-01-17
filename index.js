@@ -1,28 +1,27 @@
 const fs = require('fs');
 const path = require('node:path');
 const hakkModules = require('./hakk_modules.js');
-const { prepareAST, generate } = require('./transform.js');
+const { prepareAST, generate, changedNodesToCodeFragments } = require('./transform.js');
 const { createReplServer, modulePathManager, updatePrompt } = require('./repl.js');
 // ## Utility functions
 
+const readFile = (path) => fs.readFileSync(path, { encoding: 'utf8' });
+
 const watchForFileChanges = (path, interval, callback) => {
-  const readAndCallback = async (init) => {
-    const contents = fs.readFileSync(path, { encoding: 'utf8' });
-    await callback(contents, init);
+  const readAndCallback = (init) => {
+    callback(readFile(path), init);
   };
   readAndCallback(true);
   fs.watchFile(
     path, { interval, persistent: false },
-    async (current, previous) => {
+    (current, previous) => {
       if (current.mtime !== previous.mtime) {
-        await readAndCallback(false);
+        readAndCallback(false);
       }
     });
 };
 
 // ## REPL setup
-
-const previousNodesByFile = new Map();
 
 // TODO: Get source mapping with something like:
 // generate(ast, {sourceMaps: true, sourceFileName: "test"})
@@ -32,35 +31,6 @@ const previousNodesByFile = new Map();
 // and https://www.npmjs.com/package/source-map-support ?
 // How do these work? See also https://v8.dev/docs/stack-trace-api
 
-const changedNodesToCodeFragments = (nodes, path) => {
-  const toWrite = [];
-  const toRemove = [];
-  const previousNodes = previousNodesByFile.get(path) ?? new Map();
-  const currentNodes = new Map();
-  const updatedParentFragments = new Set();
-  for (const node of nodes) {
-    const fragment = generate(node, { comments: false }, '').code.trim();
-    currentNodes.set(fragment, node);
-    if (previousNodes.has(fragment) &&
-      !(node.parentFragmentLabel &&
-        updatedParentFragments.has(node.parentFragmentLabel))) {
-      previousNodes.delete(fragment);
-    } else {
-      if (node.fragmentLabel) {
-        updatedParentFragments.add(node.fragmentLabel);
-      }
-      toWrite.push(fragment);
-    }
-  }
-  // Removal code for previousNodes that haven't been found in new file version.
-  for (const node of previousNodes.values()) {
-    if (node._removeCode) {
-      toRemove.push(node._removeCode);
-    }
-  }
-  previousNodesByFile.set(path, currentNodes);
-  return [].concat(toRemove, toWrite);
-};
 
 const evaluateChangedCodeFragments = async (ast, path) => {
   const codeFragments = changedNodesToCodeFragments(ast.program.body, path);
@@ -69,37 +39,55 @@ const evaluateChangedCodeFragments = async (ast, path) => {
   }
 };
 
-const loadModule = (filenameFullPath, replServer) => {
-  if (modulePathManager.has(filenameFullPath)) {
-    // Already loaded module and watching it.
-    return;
+const evaluateChangedCodeFragmentsSync = (ast, path) => {
+  const codeFragments = changedNodesToCodeFragments(ast.program.body, path);
+  for (const codeFragment of codeFragments) {
+    hakkModules.evalCodeInModule(codeFragment, path);
   }
-  modulePathManager.add(filenameFullPath);
+};
+
+const updateRepl = (init, replServer, filenameFullPath) => {
+  // Trigger preview update in case the file has updated a function
+  // that will produce a new result for the pending REPL input.
+  if (replServer) {
+    replServer._ttyWrite(null, {});
+  }
+  if (!init) {
+    modulePathManager.jump(filenameFullPath);
+    updatePrompt(replServer);
+  }
+};
+
+const respond = async (code, init, filenameFullPath, replServer) => {
+  try {
+    await evaluateChangedCodeFragments(prepareAST(code), filenameFullPath);
+    updateRepl(init, replServer, filenameFullPath);
+  } catch (e) {
+    console.log(e);
+  }
+};
+
+const respondSync = (code, init, filenameFullPath, replServer) => {
+  try {
+    evaluateChangedCodeFragmentsSync(prepareAST(code), filenameFullPath);
+    updateRepl(init, replServer, filenameFullPath);
+  } catch (e) {
+    console.log(e);
+  }
+};
+
+const attachToModule = (filenameFullPath, isAsync, replServer) => {
   watchForFileChanges(
     filenameFullPath, 100,
-    async (code, init) => {
-      try {
-        await evaluateChangedCodeFragments(prepareAST(code), filenameFullPath);
-        // Trigger preview update in case the file has updated a function
-        // that will produce a new result for the pending REPL input.
-        if (replServer) {
-          replServer._ttyWrite(null, {});
-        }
-        if (!init) {
-          modulePathManager.jump(filenameFullPath);
-          updatePrompt(replServer);
-        }
-      } catch (e) {
-        console.log(e);
-      }
-    });
+    isAsync ? (code, init) => respond(code, init, filenameFullPath, replServer)
+      : (code, init) => respondSync(code, init, filenameFullPath, replServer));
 };
 
 const run = async (filename) => {
   const filenameFullPath = path.resolve(filename);
   const replServer = await createReplServer(filenameFullPath);
-  hakkModules.setModuleLoader(path => loadModule(path, replServer));
-  loadModule(filenameFullPath, replServer);
+  hakkModules.addModuleCreationListener((path, isAsync) => attachToModule(path, isAsync, replServer));
+  hakkModules.getModule(filenameFullPath);
 };
 
 module.exports = { run };

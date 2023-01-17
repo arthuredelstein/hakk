@@ -58,24 +58,22 @@ const modulePathManager = {
   }
 };
 
-const setupReplEval = (replServer) => {
-  replServer.eval = async (code, context, filename, callback) => {
-    try {
-      const modifiedCode = prepareCode(code);
-      if (modifiedCode.trim().length === 0) {
-        return callback(null);
-      }
-      const result = await hakkModules.evalCodeInModule(
-        modifiedCode, modulePathManager.current());
-      return callback(null, result);
-    } catch (e) {
-      if (incompleteCode(code, e)) {
-        return callback(new repl.Recoverable(e));
-      } else {
-        return callback(e);
-      }
+const replEval = async (code, context, filename, callback) => {
+  try {
+    const modifiedCode = prepareCode(code);
+    if (modifiedCode.trim().length === 0) {
+      return callback(null);
     }
-  };
+    const result = await hakkModules.evalCodeInModule(
+      modifiedCode, modulePathManager.current());
+    return callback(null, result);
+  } catch (e) {
+    if (incompleteCode(code, e)) {
+      return callback(new repl.Recoverable(e));
+    } else {
+      return callback(e);
+    }
+  }
 };
 
 const fileBasedPrompt = (filenameFullPath) => {
@@ -98,7 +96,7 @@ const createReplServer = async (filenameFullPath) => {
   const options = { useColors: true, prompt: fileBasedPrompt(filenameFullPath) };
   const replServer = new repl.REPLServer(options);
   await new Promise(resolve => replServer.setupHistory(path.join(historyDir(), sha256(filenameFullPath)), resolve));
-  setupReplEval(replServer, filenameFullPath);
+  replServer.eval = replEval;
   const originalTtyWrite = replServer._ttyWrite;
   replServer._ttyWrite = async (d, key) => {
     if (key.meta === true && key.shift === false && key.ctrl === false) {
@@ -112,6 +110,9 @@ const createReplServer = async (filenameFullPath) => {
     }
     originalTtyWrite(d, key);
   };
+  hakkModules.addModuleCreationListener((path) => {
+    modulePathManager.add(path);
+  });
   return replServer;
 };
 

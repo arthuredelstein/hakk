@@ -469,4 +469,36 @@ const prepareCode = (code) => {
   }
 };
 
-module.exports = { generate, parse, prepareCode, prepareAST };
+const previousNodesByKey = new Map();
+
+const changedNodesToCodeFragments = (nodes, key) => {
+  const toWrite = [];
+  const toRemove = [];
+  const previousNodes = previousNodesByKey.get(key) ?? new Map();
+  const currentNodes = new Map();
+  const updatedParentFragments = new Set();
+  for (const node of nodes) {
+    const fragment = generate(node, { comments: false }, '').code.trim();
+    currentNodes.set(fragment, node);
+    if (previousNodes.has(fragment) &&
+      !(node.parentFragmentLabel &&
+        updatedParentFragments.has(node.parentFragmentLabel))) {
+      previousNodes.delete(fragment);
+    } else {
+      if (node.fragmentLabel) {
+        updatedParentFragments.add(node.fragmentLabel);
+      }
+      toWrite.push(fragment);
+    }
+  }
+  // Removal code for previousNodes that haven't been found in newq version.
+  for (const node of previousNodes.values()) {
+    if (node._removeCode) {
+      toRemove.push(node._removeCode);
+    }
+  }
+  previousNodesByKey.set(key, currentNodes);
+  return [].concat(toRemove, toWrite);
+};
+
+module.exports = { generate, parse, prepareCode, prepareAST, changedNodesToCodeFragments };
