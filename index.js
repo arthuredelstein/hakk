@@ -8,14 +8,14 @@ const { createReplServer, modulePathManager, updatePrompt } = require('./repl.js
 const watchForFileChanges = (path, interval, callback) => {
   const readAndCallback = async (init) => {
     const contents = fs.readFileSync(path, { encoding: 'utf8' });
-    callback(contents, init);
+    await callback(contents, init);
   };
   readAndCallback(true);
   fs.watchFile(
     path, { interval, persistent: false },
-    (current, previous) => {
+    async (current, previous) => {
       if (current.mtime !== previous.mtime) {
-        readAndCallback(false);
+        await readAndCallback(false);
       }
     });
 };
@@ -62,10 +62,10 @@ const changedNodesToCodeFragments = (nodes, path) => {
   return [].concat(toRemove, toWrite);
 };
 
-const evaluateChangedCodeFragments = (ast, path) => {
+const evaluateChangedCodeFragments = async (ast, path) => {
   const codeFragments = changedNodesToCodeFragments(ast.program.body, path);
   for (const codeFragment of codeFragments) {
-    hakkModules.evalCodeInModule(codeFragment, path);
+    await hakkModules.evalCodeInModule(codeFragment, path);
   }
 };
 
@@ -77,9 +77,9 @@ const loadModule = (filenameFullPath, replServer) => {
   modulePathManager.add(filenameFullPath);
   watchForFileChanges(
     filenameFullPath, 100,
-    (code, init) => {
+    async (code, init) => {
       try {
-        evaluateChangedCodeFragments(prepareAST(code), filenameFullPath);
+        await evaluateChangedCodeFragments(prepareAST(code), filenameFullPath);
         // Trigger preview update in case the file has updated a function
         // that will produce a new result for the pending REPL input.
         if (replServer) {
