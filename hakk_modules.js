@@ -1,17 +1,14 @@
 const path = require('node:path');
 const { Module } = require('node:module');
 const { syncScopedEvaluator } = require('./sync-eval.js');
-const { asyncScopedEvaluator } = require('./async-eval.js');
+const { changedNodesToCodeFragments, prepareAST } = require('./transform.js');
+const fs = require('node:fs');
+
 var originalRequire = require;
 
 var evalCodeInModule;
 
-let moduleCreationListeners = new Set();
-
 const hakkModuleMap = new Map();
-
-let addModuleSync = undefined;
-let addModule = undefined;
 
 const isFileAsync = (path) => {
   if (path.endsWith(".mjs")) {
@@ -23,6 +20,24 @@ const isLocalPath = (path) =>
   path.startsWith("./") || path.startsWith("../") ||
   path.startsWith("/");
 
+let moduleCreationListeners = new Set();
+let moduleUpdateListeners = new Set();
+
+const watchForFileChanges = (path, interval, callback) => {
+  fs.watchFile(
+    path, { interval, persistent: false },
+    (current, previous) => {
+      if (current.mtime !== previous.mtime) {
+        callback();
+      }
+    });
+};
+
+const notifyListeners = (listeners, filePath) => {
+  for (const listener of listeners) {
+    listener(filePath);
+  }
+};
 
 class HakkModule {
   constructor(filePath) {
@@ -30,12 +45,30 @@ class HakkModule {
     this.dirPath = path.dirname(filePath);
     this.exports = {};
     hakkModuleMap.set(filePath, this);
+    this.isAsync = isFileAsync(this.filePath);
+    this.eval = syncScopedEvaluator(
+      this.exports,
+      (path) => this.require(path),
+      this,
+      this.filePath,
+      this.dirPath,
+      (path) => this.importFunction(path));
+    const update = this.isAsync
+      ? () => this.updateFileAsync()
+      : () => this.updateFileSync();
+    update();
+    watchForFileChanges(filePath, 100, () => {
+      notifyListeners(moduleUpdateListeners, filePath);
+      update();
+    });
+    notifyListeners(moduleCreationListeners, filePath);
   }
   require (requirePath) {
     const fullRequirePath = Module._resolveFilename(
       requirePath, null, false, { paths: [this.dirPath] });
     if (isLocalPath(requirePath)) {
-      const module = getModuleSync(fullRequirePath);
+      const module = getModule(fullRequirePath);
+      module.updateFileSync();
       return module.exports;
     } else {
       return originalRequire(fullRequirePath);
@@ -45,77 +78,55 @@ class HakkModule {
     const fullImportPath = Module._resolveFilename(
       importPath, null, false, { paths: [this.dirPath] });
     if (isLocalPath(importPath)) {
-      addModule(fullImportPath);
-      const module = await getModule(fullImportPath);
+      const module = getModule(fullImportPath);
+      await module.updateFileAsync();
       return module.exports;
     } else {
       return await import(fullImportPath);
     }
   }
-};
-
-var createModuleSync = (filePath) => {
-  const module = new HakkModule(filePath);
-  module.eval = syncScopedEvaluator(
-    module.exports,
-    (path) => module.require(path),
-    module,
-    module.filePath,
-    module.dirPath,
-    (path) => module.importFunction(path));
-  for (const moduleCreationListener of moduleCreationListeners) {
-    moduleCreationListener(filePath, false);
+  getLatestFragments () {
+    const contents = fs.readFileSync(this.filePath, { encoding: "utf8" }).toString();
+    return changedNodesToCodeFragments(prepareAST(contents).program.body, this.filePath);
   }
-  return module;
-};
-
-var createModule = async (filePath) => {
-  const isAsync = isFileAsync(filePath);
-  if (isAsync) {
-    const module = new HakkModule(filePath);
-    module.eval = await asyncScopedEvaluator(
-      module.exports,
-      (path) => module.require(path),
-      module,
-      module.filePath,
-      module.dirPath,
-      (path) => module.importFunction(path));
-    for (const moduleCreationListener of moduleCreationListeners) {
-      moduleCreationListener(filePath, true);
+  updateFileSync () {
+    for (const codeFragment of this.getLatestFragments()) {
+      this.eval(codeFragment);
     }
-    return module;
-  } else {
-    return createModuleSync(filePath);
+  }
+  async updateFileAsync () {
+    for (const codeFragment of this.getLatestFragments()) {
+      try {
+        this.eval(codeFragment);
+      } catch (e) {
+        if (e.message.includes("await is only valid in async functions")) {
+          await this.eval(`(async () => { ${codeFragment} })();`);
+        } else {
+          throw e;
+        }
+      }
+    }
   }
 };
 
-var getModuleSync = (filePath) => {
+var getModule = (filePath) => {
   if (hakkModuleMap.has(filePath)) {
     return hakkModuleMap.get(filePath);
   } else {
-    return createModuleSync(filePath);
+    return new HakkModule(filePath);
   }
-};
-
-var getModule = async (filePath) => {
-  if (hakkModuleMap.has(filePath)) {
-    return hakkModuleMap.get(filePath);
-  } else {
-    return createModule(filePath);
-  }
-};
-
-evalCodeInModule = async (code, modulePath) => {
-  const module = await getModule(modulePath);
-  return module.eval(code);
-};
-
-const setModuleLoader = (moduleLoaderFunction) => {
-  addModule = moduleLoaderFunction;
 };
 
 const addModuleCreationListener = (callback) => {
   moduleCreationListeners.add(callback);
 };
 
-module.exports = { evalCodeInModule, getModule, setModuleLoader, addModuleCreationListener };
+const addModuleUpdateListener = (callback) => {
+  moduleUpdateListeners.add(callback);
+};
+
+
+module.exports = {
+  evalCodeInModule, getModule,
+  addModuleCreationListener, addModuleUpdateListener 
+};

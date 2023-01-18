@@ -6,6 +6,14 @@ const fs = require('fs');
 const path = require('node:path');
 const { prepareCode } = require('./transform.js');
 
+// TODO: Get source mapping with something like:
+// generate(ast, {sourceMaps: true, sourceFileName: "test"})
+// (The `generate` API requires `sourceFileName` to be included for source maps
+// to be generated.)
+// Q: Can we use https://www.npmjs.com/package/babel-plugin-source-map-support
+// and https://www.npmjs.com/package/source-map-support ?
+// How do these work? See also https://v8.dev/docs/stack-trace-api
+
 // Take a string and return the sha256 digest in a hex string (64 characters).
 const sha256 = (text) =>
   createHash('sha256').update(text, 'utf8').digest().toString('hex');
@@ -31,6 +39,7 @@ const incompleteCode = (code, e) =>
 const modulePathManager = {
   modulePaths: [],
   add (path) {
+    console.log("Attaching", path);
     if (!this.modulePaths.includes(path)) {
       this.modulePaths.push(path);
     }
@@ -43,7 +52,7 @@ const modulePathManager = {
   },
   jump (path) {
     if (!this.modulePaths.includes(path)) {
-      throw new Error("module not found");
+      throw new Error(`module '${path}' not found`);
     }
     // Step forward one step, so user can hit "back" to return
     this.forward();
@@ -59,17 +68,32 @@ const modulePathManager = {
 };
 
 const replEval = async (code, context, filename, callback) => {
+  let modifiedCode;
   try {
-    const modifiedCode = prepareCode(code);
-    if (modifiedCode.trim().length === 0) {
-      return callback(null);
-    }
-    const result = await hakkModules.evalCodeInModule(
-      modifiedCode, modulePathManager.current());
-    return callback(null, result);
+    modifiedCode = prepareCode(code);
   } catch (e) {
     if (incompleteCode(code, e)) {
       return callback(new repl.Recoverable(e));
+    } else {
+      return callback(e);
+    }
+  }
+  if (modifiedCode.trim().length === 0) {
+    return callback(null);
+  }
+  let module = hakkModules.getModule(modulePathManager.current());
+  try {
+    const result = module.eval(modifiedCode);
+    return callback(null, result);
+  } catch (e) {
+    if (e.message.includes("await is only valid in async functions")) {
+      try {
+        const result = await module.eval(
+          `(async () => { return ${modifiedCode} })()`);
+        return callback(null, result);
+      } catch (e1) {
+        return callback(e1);
+      }
     } else {
       return callback(e);
     }
@@ -92,6 +116,16 @@ const historyDir = () => {
   return histDir;
 };
 
+const updateRepl = (replServer, filenameFullPath) => {
+  // Trigger preview update in case the file has updated a function
+  // that will produce a new result for the pending REPL input.
+  if (replServer) {
+    replServer._ttyWrite(null, {});
+  }
+  modulePathManager.jump(filenameFullPath);
+  updatePrompt(replServer);
+};
+
 const createReplServer = async (filenameFullPath) => {
   const options = { useColors: true, prompt: fileBasedPrompt(filenameFullPath) };
   const replServer = new repl.REPLServer(options);
@@ -112,6 +146,9 @@ const createReplServer = async (filenameFullPath) => {
   };
   hakkModules.addModuleCreationListener((path) => {
     modulePathManager.add(path);
+  });
+  hakkModules.addModuleUpdateListener((path) => {
+    updateRepl(replServer, path);
   });
   return replServer;
 };
