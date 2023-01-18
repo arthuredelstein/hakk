@@ -87,7 +87,7 @@ testTransform('import defaultExport from "module-name";',
   "var { default: defaultExport } = await import('module-name');");
 
 testTransform('import * as name from "module-name";',
-  "var name = await import('module-name');");
+  "var name; name = await import('module-name');");
 
 testTransform('import { export1 } from "module-name";',
   "var { export1 } = await import('module-name');");
@@ -111,7 +111,7 @@ testTransform('import defaultExport, { export1 } from "module-name";',
   "var { default: defaultExport, export1 } = await import('module-name');");
 
 testTransform('import defaultExport, * as name from "module-name";',
-  `var name = await import('module-name');
+  `var name; name = await import('module-name');
   var { default: defaultExport } = name;`);
 
 testTransform('import "module-name";',
