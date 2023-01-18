@@ -45,7 +45,7 @@ class Module {
       : () => this.updateFileSync();
     update();
     watchForFileChanges(filePath, 100, () => {
-      moduleManager.onUpdate();
+      moduleManager.onUpdate(filePath);
       update();
     });
   }

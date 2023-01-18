@@ -117,7 +117,6 @@ class Repl {
     this.moduleManager_.addModuleCreationListener((path) => {
       this.modulePathManager_.add(path);
     });
-    this.moduleManager_.addModuleUpdateListener(this.update);
     const options = {
       useColors: true,
       prompt: fileBasedPrompt(this.modulePathManager_.current()),
@@ -125,6 +124,7 @@ class Repl {
         this.eval(code, context, filename, callback)
     };
     this.replServer_ = new repl.REPLServer(options);
+    this.moduleManager_.addModuleUpdateListener(filename => this.update(filename));
     monitorSpecialKeys(this.replServer_, this.modulePathManager_);
   }
 
@@ -139,7 +139,7 @@ class Repl {
     this.replServer_._ttyWrite(null, {});
     // Switch the repl to the current file.
     this.modulePathManager_.jump(filenameFullPath);
-    updatePrompt(this._replServer, this.modulePathManager_);
+    updatePrompt(this.replServer_, this.modulePathManager_);
   }
 
   async eval (code, context, filename, callback) {
