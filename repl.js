@@ -70,7 +70,7 @@ const replEval = async (code, context, filename, callback) => {
   try {
     nodes = prepareAstNodes(code);
   } catch (e) {
-    if (incompleteCode(e)) {
+    if (incompleteCode(code, e)) {
       return callback(new repl.Recoverable(e));
     } else {
       return callback(e);
