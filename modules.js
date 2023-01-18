@@ -1,10 +1,8 @@
 const path = require('node:path');
-const { Module } = require('node:module');
+const { Module: OriginalModule } = require('node:module');
 const { scopedEvaluator } = require('./evaluator.js');
 const { changedNodesToCodeFragments, prepareAST } = require('./transform.js');
 const fs = require('node:fs');
-
-const hakkModuleMap = new Map();
 
 const isFileAsync = (path) => {
   if (path.endsWith(".mjs")) {
@@ -16,9 +14,6 @@ const isLocalPath = (path) =>
   path.startsWith("./") || path.startsWith("../") ||
   path.startsWith("/");
 
-let moduleCreationListeners = new Set();
-let moduleUpdateListeners = new Set();
-
 const watchForFileChanges = (path, interval, callback) => {
   fs.watchFile(
     path, { interval, persistent: false },
@@ -29,22 +24,15 @@ const watchForFileChanges = (path, interval, callback) => {
     });
 };
 
-const notifyListeners = (listeners, filePath) => {
-  for (const listener of listeners) {
-    listener(filePath);
-  }
-};
-
 const originalRequire = require;
 
-class HakkModule {
-  constructor(filePath) {
+class Module {
+  constructor(filePath, moduleManager) {
     this.filePath = filePath;
+    this.moduleManager_ = moduleManager;
     this.dirPath = path.dirname(filePath);
     this.exports = {};
-    hakkModuleMap.set(filePath, this);
     this.isAsync = isFileAsync(this.filePath);
-    notifyListeners(moduleCreationListeners, filePath);
     this.eval = scopedEvaluator(
       this.exports,
       (path) => this.require(path),
@@ -57,15 +45,15 @@ class HakkModule {
       : () => this.updateFileSync();
     update();
     watchForFileChanges(filePath, 100, () => {
-      notifyListeners(moduleUpdateListeners, filePath);
+      moduleManager.onUpdate();
       update();
     });
   }
   require (requirePath) {
-    const fullRequirePath = Module._resolveFilename(
+    const fullRequirePath = OriginalModule._resolveFilename(
       requirePath, null, false, { paths: [this.dirPath] });
     if (isLocalPath(requirePath)) {
-      const module = getModule(fullRequirePath);
+      const module = this.moduleManager_.getModule(fullRequirePath);
       module.updateFileSync();
       return module.exports;
     } else {
@@ -73,10 +61,10 @@ class HakkModule {
     }
   }
   async importFunction (importPath) {
-    const fullImportPath = Module._resolveFilename(
+    const fullImportPath = OriginalModule._resolveFilename(
       importPath, null, false, { paths: [this.dirPath] });
     if (isLocalPath(importPath)) {
-      const module = getModule(fullImportPath);
+      const module = this.moduleManager_.getModule(fullImportPath);
       await module.updateFileAsync();
       return module.exports;
     } else {
@@ -107,24 +95,40 @@ class HakkModule {
   }
 };
 
-var getModule = (filePath) => {
-  if (hakkModuleMap.has(filePath)) {
-    return hakkModuleMap.get(filePath);
-  } else {
-    return new HakkModule(filePath);
+class ModuleManager {
+  moduleCreationListeners_ = new Set();
+  moduleUpdateListeners_ = new Set();
+  moduleMap_ = new Map();
+  constructor(rootModulePath) {
+    this.getModule(rootModulePath);
   }
-};
-
-const addModuleCreationListener = (callback) => {
-  moduleCreationListeners.add(callback);
-};
-
-const addModuleUpdateListener = (callback) => {
-  moduleUpdateListeners.add(callback);
-};
+  getModule = (filePath) => {
+    if (this.moduleMap_.has(filePath)) {
+      return this.moduleMap_.get(filePath);
+    } else {
+      const module = new Module(filePath, this);
+      this.moduleMap_.set(filePath, module);
+      this.moduleCreationListeners_.forEach(listener => listener(filePath));
+      return module;
+    }
+  };
+  addModuleCreationListener (callback) {
+    this.moduleCreationListeners_.add(callback);
+  }
+  addModuleUpdateListener (callback) {
+    this.moduleUpdateListeners_.add(callback);
+  }
+  onUpdate (filePath) {
+    this.moduleUpdateListeners_.forEach(listener => listener(filePath));
+  }
+  evalInModule (filePath, code) {
+    return this.getModule(filePath).eval(code);
+  }
+  getModulePaths () {
+    return [...this.moduleMap_.keys()].reverse();
+  }
+}
 
 module.exports = {
-  getModule,
-  addModuleCreationListener,
-  addModuleUpdateListener,
+  ModuleManager
 };

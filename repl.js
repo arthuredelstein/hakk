@@ -1,7 +1,6 @@
 const repl = require('node:repl');
 const { createHash } = require('node:crypto');
 const homedir = require('os').homedir();
-const modules = require('./modules.js');
 const fs = require('fs');
 const path = require('node:path');
 const { prepareAstNodes, generate } = require('./transform.js');
@@ -35,74 +34,46 @@ const unterminatedTemplate = (code, e) =>
 const incompleteCode = (code, e) =>
   unexpectedNewLine(code, e) || unterminatedTemplate(code, e);
 
-const modulePathManager = {
-  modulePaths: [],
+class ModulePathManager {
+  constructor(paths) {
+    this.modulePaths_ = paths;
+  }
   add (path) {
-    if (!this.modulePaths.includes(path)) {
-      this.modulePaths.push(path);
+    if (!this.modulePaths_.includes(path)) {
+      this.modulePaths_.push(path);
     }
-  },
+  }
   forward () {
-    this.modulePaths.push(this.modulePaths.shift());
-  },
+    this.modulePaths_.push(this.modulePaths_.shift());
+  }
   back () {
-    this.modulePaths.unshift(this.modulePaths.pop());
-  },
+    this.modulePaths_.unshift(this.modulePaths_.pop());
+  }
   jump (path) {
-    if (!this.modulePaths.includes(path)) {
+    if (!this.modulePaths_.includes(path)) {
       throw new Error(`module '${path}' not found`);
     }
     // Step forward one step, so user can hit "back" to return
     this.forward();
-    this.modulePaths = this.modulePaths.filter(p => p !== path);
-    this.modulePaths.unshift(path);
-  },
+    this.modulePaths_ = this.modulePaths_.filter(p => p !== path);
+    this.modulePaths_.unshift(path);
+  }
   current () {
-    return this.modulePaths[0];
-  },
+    return this.modulePaths_[0];
+  }
   has (path) {
-    return this.modulePaths.includes(path);
+    return this.modulePaths_.includes(path);
   }
 };
 
-const replEval = async (code, context, filename, callback) => {
-  let nodes;
-  try {
-    nodes = prepareAstNodes(code);
-  } catch (e) {
-    if (incompleteCode(code, e)) {
-      return callback(new repl.Recoverable(e));
-    } else {
-      return callback(e);
-    }
-  }
-  if (nodes.length === 0) {
-    return callback(null);
-  }
-  let module = modules.getModule(modulePathManager.current());
-  let result;
-  for (const node of nodes) {
-    let modifiedCode = generate(node).code;
-    try {
-      if (node._topLevelAwait) {
-        result = await module.eval(
-          `(async () => { return ${modifiedCode} })()`);
-      } else {
-        result = module.eval(modifiedCode);
-      }
-    } catch (e) {
-      return callback(e);
-    }
-  }
-  return callback(null, result);
-};
+
 
 const fileBasedPrompt = (filenameFullPath) => {
   const filename = path.basename(filenameFullPath);
   return `${filename}> `;
 };
 
-const updatePrompt = (replServer) => {
+const updatePrompt = (replServer, modulePathManager) => {
   replServer.setPrompt(fileBasedPrompt(modulePathManager.current()));
   replServer.prompt();
 };
@@ -113,48 +84,88 @@ const historyDir = () => {
   return histDir;
 };
 
-const updateRepl = (replServer, filenameFullPath) => {
-  // Trigger preview update in case the file has updated a function
-  // that will produce a new result for the pending REPL input.
-  if (replServer) {
-    replServer._ttyWrite(null, {});
-  }
-  modulePathManager.jump(filenameFullPath);
-  updatePrompt(replServer);
-};
-
-const monitorSpecialKeys = (replServer) => {
+const monitorSpecialKeys = (replServer, modulePathManager) => {
   const originalTtyWrite = replServer._ttyWrite;
   replServer._ttyWrite = async (d, key) => {
     if (key.meta === true && key.shift === false && key.ctrl === false) {
       if (key.name === 'f') {
         modulePathManager.forward();
-        updatePrompt(replServer);
+        updatePrompt(replServer, modulePathManager);
       } else if (key.name === 'b') {
         modulePathManager.back();
-        updatePrompt(replServer);
+        updatePrompt(replServer, modulePathManager);
       }
     }
     originalTtyWrite(d, key);
   };
 };
 
-const initializeReplHistory = async (replServer, filenameFullPath) =>
-  new Promise(resolve => replServer.setupHistory(
-    path.join(historyDir(), sha256(filenameFullPath)), resolve));
-
-const createReplServer = async (filenameFullPath) => {
-  const options = {
-    useColors: true,
-    prompt: fileBasedPrompt(filenameFullPath),
-    eval: replEval,
+class Repl {
+  static async start (moduleManager) {
+    const repl = new Repl(moduleManager);
+    await repl.initializeHistory();
+    return repl;
+  }
+  constructor(moduleManager) {
+    this.moduleManager_ = moduleManager;
+    this.modulePathManager_ = new ModulePathManager(moduleManager.getModulePaths());
+    this.moduleManager_.addModuleCreationListener((path) => {
+      modulePathManager_.add(path);
+    });
+    this.moduleManager_.addModuleUpdateListener(this.update);
+    const options = {
+      useColors: true,
+      prompt: fileBasedPrompt(this.modulePathManager_.current()),
+      eval: (code, context, filename, callback) =>
+        this.eval(code, context, filename, callback),
+    };
+    this.replServer_ = new repl.REPLServer(options);
+    monitorSpecialKeys(this.replServer_, this.modulePathManager_);
+  }
+  initializeHistory () {
+    return new Promise(resolve => this.replServer_.setupHistory(
+      path.join(historyDir(), sha256(this.modulePathManager_.current())), resolve));
   };
-  const replServer = new repl.REPLServer(options);
-  monitorSpecialKeys(replServer);
-  await initializeReplHistory(replServer, filenameFullPath);
-  modules.addModuleCreationListener((path) => modulePathManager.add(path));
-  modules.addModuleUpdateListener((path) => updateRepl(replServer, path));
-  return replServer;
-};
+  update (filenameFullPath) {
+    // Trigger preview update in case the file has updated a function
+    // that will produce a new result for the pending REPL input.
+    this.replServer_._ttyWrite(null, {});
+    // Switch the repl to the current file.
+    modulePathManager_.jump(filenameFullPath);
+    updatePrompt(this._replServer, this.modulePathManager_);
+  }
+  async eval (code, context, filename, callback) {
+    let nodes;
+    try {
+      nodes = prepareAstNodes(code);
+    } catch (e) {
+      if (incompleteCode(code, e)) {
+        return callback(new repl.Recoverable(e));
+      } else {
+        return callback(e);
+      }
+    }
+    if (nodes.length === 0) {
+      return callback(null);
+    }
+    const evalInCurrentModule = code => this.moduleManager_.evalInModule(
+      this.modulePathManager_.current(), code);
+    let result;
+    for (const node of nodes) {
+      let modifiedCode = generate(node).code;
+      try {
+        if (node._topLevelAwait) {
+          result = await evalInCurrentModule(
+            `(async () => { return ${modifiedCode} })()`);
+        } else {
+          result = evalInCurrentModule(modifiedCode);
+        }
+      } catch (e) {
+        return callback(e);
+      }
+    }
+    return callback(null, result);
+  };
+}
 
-module.exports = { createReplServer, modulePathManager, updatePrompt };
+module.exports = { Repl };
