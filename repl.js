@@ -1,7 +1,7 @@
 const repl = require('node:repl');
 const { createHash } = require('node:crypto');
 const homedir = require('os').homedir();
-const hakkModules = require('./hakk_modules.js');
+const modules = require('./modules.js');
 const fs = require('fs');
 const path = require('node:path');
 const { prepareCodeFragments } = require('./transform.js');
@@ -80,7 +80,7 @@ const replEval = async (code, context, filename, callback) => {
   if (modifiedCodeFragments.length === 0) {
     return callback(null);
   }
-  let module = hakkModules.getModule(modulePathManager.current());
+  let module = modules.getModule(modulePathManager.current());
   let result;
   for (const fragment of modifiedCodeFragments) {
     try {
@@ -156,8 +156,8 @@ const createReplServer = async (filenameFullPath) => {
   const replServer = new repl.REPLServer(options);
   monitorSpecialKeys(replServer);
   await initializeReplHistory(replServer, filenameFullPath);
-  hakkModules.addModuleCreationListener((path) => modulePathManager.add(path));
-  hakkModules.addModuleUpdateListener((path) => updateRepl(replServer, path));
+  modules.addModuleCreationListener((path) => modulePathManager.add(path));
+  modules.addModuleUpdateListener((path) => updateRepl(replServer, path));
   return replServer;
 };
 
