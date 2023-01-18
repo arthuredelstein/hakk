@@ -4,7 +4,7 @@ const homedir = require('os').homedir();
 const hakkModules = require('./hakk_modules.js');
 const fs = require('fs');
 const path = require('node:path');
-const { prepareCode } = require('./transform.js');
+const { prepareCodeFragments } = require('./transform.js');
 
 // TODO: Get source mapping with something like:
 // generate(ast, {sourceMaps: true, sourceFileName: "test"})
@@ -67,9 +67,9 @@ const modulePathManager = {
 };
 
 const replEval = async (code, context, filename, callback) => {
-  let modifiedCode;
+  let modifiedCodeFragments;
   try {
-    modifiedCode = prepareCode(code);
+    modifiedCodeFragments = prepareCodeFragments(code);
   } catch (e) {
     if (incompleteCode(code, e)) {
       return callback(new repl.Recoverable(e));
@@ -77,26 +77,28 @@ const replEval = async (code, context, filename, callback) => {
       return callback(e);
     }
   }
-  if (modifiedCode.trim().length === 0) {
+  if (modifiedCodeFragments.length === 0) {
     return callback(null);
   }
   let module = hakkModules.getModule(modulePathManager.current());
-  try {
-    const result = module.eval(modifiedCode);
-    return callback(null, result);
-  } catch (e) {
-    if (e.message.includes("await is only valid in async functions")) {
-      try {
-        const result = await module.eval(
-          `(async () => { return ${modifiedCode} })()`);
-        return callback(null, result);
-      } catch (e1) {
-        return callback(e1);
+  let result;
+  for (const fragment of modifiedCodeFragments) {
+    try {
+      result = module.eval(fragment);
+    } catch (e) {
+      if (e.message.includes("await is only valid in async functions")) {
+        try {
+          result = await module.eval(
+            `(async () => { return ${fragment} })()`);
+        } catch (e1) {
+          return callback(e1);
+        }
+      } else {
+        return callback(e);
       }
-    } else {
-      return callback(e);
     }
   }
+  return callback(null, result);
 };
 
 const fileBasedPrompt = (filenameFullPath) => {
@@ -139,7 +141,7 @@ const monitorSpecialKeys = (replServer) => {
     }
     originalTtyWrite(d, key);
   };
-}
+};
 
 const initializeReplHistory = async (replServer, filenameFullPath) =>
   new Promise(resolve => replServer.setupHistory(
@@ -149,7 +151,7 @@ const createReplServer = async (filenameFullPath) => {
   const options = {
     useColors: true,
     prompt: fileBasedPrompt(filenameFullPath),
-    eva: replEval
+    eval: replEval,
   };
   const replServer = new repl.REPLServer(options);
   monitorSpecialKeys(replServer);

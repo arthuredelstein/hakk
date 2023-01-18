@@ -44,6 +44,7 @@ class HakkModule {
     this.exports = {};
     hakkModuleMap.set(filePath, this);
     this.isAsync = isFileAsync(this.filePath);
+    notifyListeners(moduleCreationListeners, filePath);
     this.eval = syncScopedEvaluator(
       this.exports,
       (path) => this.require(path),
@@ -59,7 +60,6 @@ class HakkModule {
       notifyListeners(moduleUpdateListeners, filePath);
       update();
     });
-    notifyListeners(moduleCreationListeners, filePath);
   }
   require (requirePath) {
     const fullRequirePath = Module._resolveFilename(

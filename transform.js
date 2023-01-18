@@ -11,20 +11,68 @@ const parse = (code) => parser.parse(code, { sourceType: 'module' });
 
 // ## AST transformation visitors
 
-const varVisitor = {
-  VariableDeclaration (path) {
-    if (!types.isProgram(path.parentPath)) {
+const getEnclosingFunction = path => path.findParent((path) => path.isFunction());
+
+const getEnclosingVariableDeclarator = path => path.findParent((path) => path.isVariableDeclarator());
+
+const handleAwaitExpression = (path) => {
+  if (getEnclosingFunction(path)) {
+    return;
+  }
+  var declarator = getEnclosingVariableDeclarator(path);
+  let outputs = [];
+  if (declarator) {
+    if (!types.isProgram(declarator.parentPath.parentPath)) {
       return;
     }
-    if (path.node.kind !== 'var' || path.node.declarations.length > 1) {
-      const outputNodes = path.node.declarations.map(
-        d => types.variableDeclaration('var', [d]));
-      path.replaceWithMultiple(outputNodes);
-    }
-    if (path.node && path.node.kind === 'var' && path.node.declarations.length === 1) {
-      const varName = path.node.declarations[0].id.name;
-      path.node._removeCode = `${varName} = undefined;`;
-    }
+    outputs.push({
+      type: 'VariableDeclaration',
+      declarations: [
+        {
+          type: 'VariableDeclarator',
+          id: declarator.node.id,
+          init: null,
+        }
+      ],
+      kind: declarator.parent.kind
+    });
+    outputs.push({
+      type: 'ExpressionStatement',
+      expression: {
+        type: 'AssignmentExpression',
+        operator: '=',
+        left: declarator.node.id,
+        right: declarator.node.init
+      }
+    });
+    declarator.parentPath.replaceWithMultiple(outputs);
+  }
+};
+
+const awaitVisitor = {
+  AwaitExpression (path) {
+    handleAwaitExpression(path);
+  }
+};
+
+const handleVariableDeclaration = (path) => {
+  if (!types.isProgram(path.parentPath)) {
+    return;
+  }
+  if (path.node.kind !== 'var' || path.node.declarations.length > 1) {
+    const outputNodes = path.node.declarations.map(
+      d => types.variableDeclaration('var', [d]));
+    path.replaceWithMultiple(outputNodes);
+  }
+  if (path.node && path.node.kind === 'var' && path.node.declarations.length === 1) {
+    const varName = path.node.declarations[0].id.name;
+    path.node._removeCode = `${varName} = undefined;`;
+  }
+};
+
+const varVisitor = {
+  VariableDeclaration (path) {
+    handleVariableDeclaration(path);
   }
 };
 
@@ -458,7 +506,7 @@ const prepareAST = (code) => {
   // console.log(varVisitor.VariableDeclaration.toString());
   return transform(ast,
     [importVisitor, exportVisitor, superVisitor, staticBlockVisitor,
-      objectVisitor, classVisitor, varVisitor]);
+      objectVisitor, classVisitor, varVisitor, awaitVisitor]);
 };
 
 const prepareCode = (code) => {
@@ -466,6 +514,14 @@ const prepareCode = (code) => {
     return '';
   } else {
     return generate(prepareAST(code)).code;
+  }
+};
+
+const prepareCodeFragments = (code) => {
+  if (code.length === 0) {
+    return [];
+  } else {
+    return prepareAST(code).program.body.map(node => generate(node).code);
   }
 };
 
@@ -501,4 +557,4 @@ const changedNodesToCodeFragments = (nodes, key) => {
   return [].concat(toRemove, toWrite);
 };
 
-module.exports = { generate, parse, prepareCode, prepareAST, changedNodesToCodeFragments };
+module.exports = { generate, parse, prepareCodeFragments, prepareCode, prepareAST, changedNodesToCodeFragments };
