@@ -1,6 +1,6 @@
 const path = require('node:path');
 const { Module } = require('node:module');
-const { syncScopedEvaluator } = require('./sync-eval.js');
+const { scopedEvaluator } = require('./evaluator.js');
 const { changedNodesToCodeFragments, prepareAST } = require('./transform.js');
 const fs = require('node:fs');
 
@@ -45,7 +45,7 @@ class HakkModule {
     hakkModuleMap.set(filePath, this);
     this.isAsync = isFileAsync(this.filePath);
     notifyListeners(moduleCreationListeners, filePath);
-    this.eval = syncScopedEvaluator(
+    this.eval = scopedEvaluator(
       this.exports,
       (path) => this.require(path),
       this,
