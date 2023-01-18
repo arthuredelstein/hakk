@@ -505,7 +505,8 @@ const prepareAstNodes = (code) => {
   if (code.length === 0) {
     return [];
   } else {
-    return prepareAST(code).program.body;
+    const program = prepareAST(code).program;
+    return program ? program.body : [];
   }
 };
 
