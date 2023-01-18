@@ -4,7 +4,7 @@ const homedir = require('os').homedir();
 const modules = require('./modules.js');
 const fs = require('fs');
 const path = require('node:path');
-const { prepareCodeFragments } = require('./transform.js');
+const { prepareAstNodes, generate } = require('./transform.js');
 
 // TODO: Get source mapping with something like:
 // generate(ast, {sourceMaps: true, sourceFileName: "test"})
@@ -30,8 +30,7 @@ const unexpectedNewLine = (code, e) =>
 const unterminatedTemplate = (code, e) =>
   e &&
   e.code === 'BABEL_PARSER_SYNTAX_ERROR' &&
-  e.reasonCode === 'UnterminatedTemplate' &&
-  code[code.length - 1] === '\n';
+  e.reasonCode === 'UnterminatedTemplate';
 
 const incompleteCode = (code, e) =>
   unexpectedNewLine(code, e) || unterminatedTemplate(code, e);
@@ -67,35 +66,32 @@ const modulePathManager = {
 };
 
 const replEval = async (code, context, filename, callback) => {
-  let modifiedCodeFragments;
+  let nodes;
   try {
-    modifiedCodeFragments = prepareCodeFragments(code);
+    nodes = prepareAstNodes(code);
   } catch (e) {
-    if (incompleteCode(code, e)) {
+    if (incompleteCode(e)) {
       return callback(new repl.Recoverable(e));
     } else {
       return callback(e);
     }
   }
-  if (modifiedCodeFragments.length === 0) {
+  if (nodes.length === 0) {
     return callback(null);
   }
   let module = modules.getModule(modulePathManager.current());
   let result;
-  for (const fragment of modifiedCodeFragments) {
+  for (const node of nodes) {
+    let modifiedCode = generate(node).code;
     try {
-      result = module.eval(fragment);
-    } catch (e) {
-      if (e.message.includes("await is only valid in async functions")) {
-        try {
-          result = await module.eval(
-            `(async () => { return ${fragment} })()`);
-        } catch (e1) {
-          return callback(e1);
-        }
+      if (node._topLevelAwait) {
+        result = await module.eval(
+          `(async () => { return ${modifiedCode} })()`);
       } else {
-        return callback(e);
+        result = module.eval(modifiedCode);
       }
+    } catch (e) {
+      return callback(e);
     }
   }
   return callback(null, result);

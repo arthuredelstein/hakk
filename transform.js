@@ -19,6 +19,8 @@ const handleAwaitExpression = (path) => {
   if (getEnclosingFunction(path)) {
     return;
   }
+  const topPath = path.find((path) => path.parentPath.isProgram());
+  topPath.node._topLevelAwait = true;
   var declarator = getEnclosingVariableDeclarator(path);
   let outputs = [];
   if (declarator) {
@@ -499,11 +501,11 @@ const prepareCode = (code) => {
   }
 };
 
-const prepareCodeFragments = (code) => {
+const prepareAstNodes = (code) => {
   if (code.length === 0) {
     return [];
   } else {
-    return prepareAST(code).program.body.map(node => generate(node).code);
+    return prepareAST(code).program.body;
   }
 };
 
@@ -539,4 +541,4 @@ const changedNodesToCodeFragments = (nodes, key) => {
   return [].concat(toRemove, toWrite);
 };
 
-module.exports = { generate, parse, prepareCodeFragments, prepareCode, prepareAST, changedNodesToCodeFragments };
+module.exports = { generate, parse, prepareAstNodes, prepareCode, prepareAST, changedNodesToCodeFragments };
