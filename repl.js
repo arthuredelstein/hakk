@@ -39,7 +39,6 @@ const incompleteCode = (code, e) =>
 const modulePathManager = {
   modulePaths: [],
   add (path) {
-    console.log("Attaching", path);
     if (!this.modulePaths.includes(path)) {
       this.modulePaths.push(path);
     }

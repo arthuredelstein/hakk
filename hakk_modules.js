@@ -4,10 +4,6 @@ const { syncScopedEvaluator } = require('./sync-eval.js');
 const { changedNodesToCodeFragments, prepareAST } = require('./transform.js');
 const fs = require('node:fs');
 
-var originalRequire = require;
-
-var evalCodeInModule;
-
 const hakkModuleMap = new Map();
 
 const isFileAsync = (path) => {
@@ -38,6 +34,8 @@ const notifyListeners = (listeners, filePath) => {
     listener(filePath);
   }
 };
+
+const originalRequire = require;
 
 class HakkModule {
   constructor(filePath) {
@@ -125,8 +123,8 @@ const addModuleUpdateListener = (callback) => {
   moduleUpdateListeners.add(callback);
 };
 
-
 module.exports = {
-  evalCodeInModule, getModule,
-  addModuleCreationListener, addModuleUpdateListener 
+  getModule,
+  addModuleCreationListener,
+  addModuleUpdateListener,
 };
