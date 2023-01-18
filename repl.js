@@ -35,20 +35,24 @@ const incompleteCode = (code, e) =>
   unexpectedNewLine(code, e) || unterminatedTemplate(code, e);
 
 class ModulePathManager {
-  constructor(paths) {
+  constructor (paths) {
     this.modulePaths_ = paths;
   }
+
   add (path) {
     if (!this.modulePaths_.includes(path)) {
       this.modulePaths_.push(path);
     }
   }
+
   forward () {
     this.modulePaths_.push(this.modulePaths_.shift());
   }
+
   back () {
     this.modulePaths_.unshift(this.modulePaths_.pop());
   }
+
   jump (path) {
     if (!this.modulePaths_.includes(path)) {
       throw new Error(`module '${path}' not found`);
@@ -58,15 +62,15 @@ class ModulePathManager {
     this.modulePaths_ = this.modulePaths_.filter(p => p !== path);
     this.modulePaths_.unshift(path);
   }
+
   current () {
     return this.modulePaths_[0];
   }
+
   has (path) {
     return this.modulePaths_.includes(path);
   }
-};
-
-
+}
 
 const fileBasedPrompt = (filenameFullPath) => {
   const filename = path.basename(filenameFullPath);
@@ -106,34 +110,38 @@ class Repl {
     await repl.initializeHistory();
     return repl;
   }
-  constructor(moduleManager) {
+
+  constructor (moduleManager) {
     this.moduleManager_ = moduleManager;
     this.modulePathManager_ = new ModulePathManager(moduleManager.getModulePaths());
     this.moduleManager_.addModuleCreationListener((path) => {
-      modulePathManager_.add(path);
+      this.modulePathManager_.add(path);
     });
     this.moduleManager_.addModuleUpdateListener(this.update);
     const options = {
       useColors: true,
       prompt: fileBasedPrompt(this.modulePathManager_.current()),
       eval: (code, context, filename, callback) =>
-        this.eval(code, context, filename, callback),
+        this.eval(code, context, filename, callback)
     };
     this.replServer_ = new repl.REPLServer(options);
     monitorSpecialKeys(this.replServer_, this.modulePathManager_);
   }
+
   initializeHistory () {
     return new Promise(resolve => this.replServer_.setupHistory(
       path.join(historyDir(), sha256(this.modulePathManager_.current())), resolve));
-  };
+  }
+
   update (filenameFullPath) {
     // Trigger preview update in case the file has updated a function
     // that will produce a new result for the pending REPL input.
     this.replServer_._ttyWrite(null, {});
     // Switch the repl to the current file.
-    modulePathManager_.jump(filenameFullPath);
+    this.modulePathManager_.jump(filenameFullPath);
     updatePrompt(this._replServer, this.modulePathManager_);
   }
+
   async eval (code, context, filename, callback) {
     let nodes;
     try {
@@ -152,7 +160,7 @@ class Repl {
       this.modulePathManager_.current(), code);
     let result;
     for (const node of nodes) {
-      let modifiedCode = generate(node).code;
+      const modifiedCode = generate(node).code;
       try {
         if (node._topLevelAwait) {
           result = await evalInCurrentModule(
@@ -165,7 +173,7 @@ class Repl {
       }
     }
     return callback(null, result);
-  };
+  }
 }
 
 module.exports = { Repl };

@@ -21,8 +21,8 @@ const handleAwaitExpression = (path) => {
   }
   const topPath = path.find((path) => path.parentPath.isProgram());
   topPath.node._topLevelAwait = true;
-  var declarator = getEnclosingVariableDeclarator(path);
-  let outputs = [];
+  const declarator = getEnclosingVariableDeclarator(path);
+  const outputs = [];
   if (declarator) {
     if (!types.isProgram(declarator.parentPath.parentPath)) {
       return;
@@ -33,7 +33,7 @@ const handleAwaitExpression = (path) => {
         {
           type: 'VariableDeclarator',
           id: declarator.node.id,
-          init: null,
+          init: null
         }
       ],
       kind: declarator.parent.kind
@@ -367,8 +367,8 @@ const astCodeToAddToModuleExports = (identifier, localName) =>
 const wildcardExport = (namespaceIdentifier) => {
   const namespaceAccessorString = namespaceIdentifier
     ? (types.isStringLiteral(namespaceIdentifier)
-      ? `['${namespaceIdentifier.value}']`
-      : `.${namespaceIdentifier.name}`)
+        ? `['${namespaceIdentifier.value}']`
+        : `.${namespaceIdentifier.name}`)
     : '';
   return template.ast(
     `const propertyNames = Object.getOwnPropertyNames(importedObject);

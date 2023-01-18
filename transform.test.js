@@ -1,3 +1,5 @@
+/* eslint-env jest */
+
 const { prepareCode } = require('./transform.js');
 
 const cleanString = (x) =>
@@ -17,13 +19,13 @@ testTransform('let x = 1;', 'var x = 1;');
 
 testTransform('var x = await Promise.resolve(1);', 'var x; x = await Promise.resolve(1);');
 
-testTransform('let x = await Promise.resolve(2);' ,'var x; x = await Promise.resolve(2);');
+testTransform('let x = await Promise.resolve(2);', 'var x; x = await Promise.resolve(2);');
 
-testTransform('const x = await Promise.resolve(3);' ,'var x; x = await Promise.resolve(3);');
+testTransform('const x = await Promise.resolve(3);', 'var x; x = await Promise.resolve(3);');
 
-testTransform('const f = async() => { await Promise.resolve(4); }' ,'var f = async () => { await Promise.resolve(4); };');
+testTransform('const f = async() => { await Promise.resolve(4); }', 'var f = async () => { await Promise.resolve(4); };');
 
-testTransform('const f = async() => { var y = await Promise.resolve(4); }' ,'var f = async () => { var y = await Promise.resolve(4); };');
+testTransform('const f = async() => { var y = await Promise.resolve(4); }', 'var f = async () => { var y = await Promise.resolve(4); };');
 
 // ## class declarations and expressions
 

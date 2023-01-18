@@ -5,14 +5,14 @@ const { changedNodesToCodeFragments, prepareAST } = require('./transform.js');
 const fs = require('node:fs');
 
 const isFileAsync = (path) => {
-  if (path.endsWith(".mjs")) {
+  if (path.endsWith('.mjs')) {
     return true;
   }
 };
 
 const isLocalPath = (path) =>
-  path.startsWith("./") || path.startsWith("../") ||
-  path.startsWith("/");
+  path.startsWith('./') || path.startsWith('../') ||
+  path.startsWith('/');
 
 const watchForFileChanges = (path, interval, callback) => {
   fs.watchFile(
@@ -27,7 +27,7 @@ const watchForFileChanges = (path, interval, callback) => {
 const originalRequire = require;
 
 class Module {
-  constructor(filePath, moduleManager) {
+  constructor (filePath, moduleManager) {
     this.filePath = filePath;
     this.moduleManager_ = moduleManager;
     this.dirPath = path.dirname(filePath);
@@ -49,6 +49,7 @@ class Module {
       update();
     });
   }
+
   require (requirePath) {
     const fullRequirePath = OriginalModule._resolveFilename(
       requirePath, null, false, { paths: [this.dirPath] });
@@ -60,6 +61,7 @@ class Module {
       return originalRequire(fullRequirePath);
     }
   }
+
   async importFunction (importPath) {
     const fullImportPath = OriginalModule._resolveFilename(
       importPath, null, false, { paths: [this.dirPath] });
@@ -71,21 +73,24 @@ class Module {
       return await import(fullImportPath);
     }
   }
+
   getLatestFragments () {
-    const contents = fs.readFileSync(this.filePath, { encoding: "utf8" }).toString();
+    const contents = fs.readFileSync(this.filePath, { encoding: 'utf8' }).toString();
     return changedNodesToCodeFragments(prepareAST(contents).program.body, this.filePath);
   }
+
   updateFileSync () {
     for (const codeFragment of this.getLatestFragments()) {
       this.eval(codeFragment);
     }
   }
+
   async updateFileAsync () {
     for (const codeFragment of this.getLatestFragments()) {
       try {
         this.eval(codeFragment);
       } catch (e) {
-        if (e.message.includes("await is only valid in async functions")) {
+        if (e.message.includes('await is only valid in async functions')) {
           await this.eval(`(async () => { ${codeFragment} })();`);
         } else {
           throw e;
@@ -93,16 +98,17 @@ class Module {
       }
     }
   }
-};
+}
 
 class ModuleManager {
-  moduleCreationListeners_ = new Set();
-  moduleUpdateListeners_ = new Set();
-  moduleMap_ = new Map();
-  constructor(rootModulePath) {
+  constructor (rootModulePath) {
+    this.moduleCreationListeners_ = new Set();
+    this.moduleUpdateListeners_ = new Set();
+    this.moduleMap_ = new Map();
     this.getModule(rootModulePath);
   }
-  getModule = (filePath) => {
+
+  getModule (filePath) {
     if (this.moduleMap_.has(filePath)) {
       return this.moduleMap_.get(filePath);
     } else {
@@ -111,19 +117,24 @@ class ModuleManager {
       this.moduleCreationListeners_.forEach(listener => listener(filePath));
       return module;
     }
-  };
+  }
+
   addModuleCreationListener (callback) {
     this.moduleCreationListeners_.add(callback);
   }
+
   addModuleUpdateListener (callback) {
     this.moduleUpdateListeners_.add(callback);
   }
+
   onUpdate (filePath) {
     this.moduleUpdateListeners_.forEach(listener => listener(filePath));
   }
+
   evalInModule (filePath, code) {
     return this.getModule(filePath).eval(code);
   }
+
   getModulePaths () {
     return [...this.moduleMap_.keys()].reverse();
   }

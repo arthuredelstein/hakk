@@ -1,8 +1,8 @@
 module.exports = {
-  scopedEvaluator: (the_exports, require, module, filePath, dirPath) => {
+  scopedEvaluator: (exports, require, module, filePath, dirPath) => {
     // Create a generator that reads a value on yield
     // evaluates it, and sends the result back.
-    const generator = function* (exports, require, module, __filename, __dirname) {
+    const generator = function * (exports, require, module, __filename, __dirname) {
       let valueToSend;
       while (true) {
         const receivedValue = yield valueToSend;
@@ -10,14 +10,14 @@ module.exports = {
           break;
         }
         try {
-          valueToSend = { result: eval(receivedValue) };
+          valueToSend = { result: eval(receivedValue) }; // eslint-disable-line no-eval
         } catch (e) {
           valueToSend = { error: e };
         }
       }
     };
     // Run the generator.
-    const iterator = generator(the_exports, require, module, filePath, dirPath);
+    const iterator = generator(exports, require, module, filePath, dirPath);
     // Discard first empty value.
     iterator.next();
     // Return an evaluation function that

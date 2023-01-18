@@ -8,9 +8,8 @@ const filename = argv._[0];
 
 const main = () => {
   run(filename, argv);
-}
+};
 
 if (require.main === module) {
   main();
 }
-  
