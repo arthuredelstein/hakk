@@ -4,10 +4,21 @@ const { scopedEvaluator } = require('./evaluator.js');
 const { changedNodesToCodeFragments, prepareAST } = require('./transform.js');
 const fs = require('node:fs');
 
-const isFileAsync = (path) => {
-  if (path.endsWith('.mjs')) {
+const isFileAsync = (filePath) => {
+  if (filePath.endsWith('.mjs')) {
     return true;
   }
+  try {
+    const packageFile = path.join(path.dirname(filePath), "package.json");
+    const packageFileContents = fs.readFileSync(packageFile).toString();
+    const packageObject = JSON.parse(packageFileContents);
+    if (packageObject["type"] === "module") {
+      return true;
+    }
+  } catch (e) {
+    console.log(e);
+  }
+  return false;
 };
 
 const isLocalPath = (path) =>
@@ -28,6 +39,7 @@ const originalRequire = require;
 
 class Module {
   constructor (filePath, moduleManager) {
+    console.log("creating module " + filePath);
     this.filePath = filePath;
     this.moduleManager_ = moduleManager;
     this.dirPath = path.dirname(filePath);
@@ -55,7 +67,6 @@ class Module {
       requirePath, null, false, { paths: [this.dirPath] });
     if (isLocalPath(requirePath)) {
       const module = this.moduleManager_.getModule(fullRequirePath);
-      module.updateFileSync();
       return module.exports;
     } else {
       return originalRequire(fullRequirePath);
@@ -67,7 +78,6 @@ class Module {
       importPath, null, false, { paths: [this.dirPath] });
     if (isLocalPath(importPath)) {
       const module = this.moduleManager_.getModule(fullImportPath);
-      await module.updateFileAsync();
       return module.exports;
     } else {
       return await import(fullImportPath);
@@ -80,22 +90,26 @@ class Module {
   }
 
   updateFileSync () {
-    for (const codeFragment of this.getLatestFragments()) {
-      this.eval(codeFragment);
+    try {
+      for (const { code } of this.getLatestFragments()) {
+        this.eval(code);
+      }
+    } catch (e) {
+      console.error(e);
     }
   }
 
   async updateFileAsync () {
-    for (const codeFragment of this.getLatestFragments()) {
-      try {
-        this.eval(codeFragment);
-      } catch (e) {
-        if (e.message.includes('await is only valid in async functions')) {
-          await this.eval(`(async () => { ${codeFragment} })();`);
+    try {
+      for (const { code, isAsync } of this.getLatestFragments()) {
+        if (!isAsync) {
+          this.eval(code);
         } else {
-          throw e;
+          await this.eval(`(async () => { ${code} })();`);
         }
       }
+    } catch (e) {
+      console.error(e);
     }
   }
 }

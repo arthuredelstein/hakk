@@ -124,7 +124,7 @@ const importVisitor = {
         namespaceId = specifier.local.name;
       }
     }
-    const sourceString = `await import('${source}')`;
+    const sourceString = `await importFunction('${source}')`;
     let line = '';
     if (namespaceId !== undefined) {
       line += `const ${namespaceId} = ${sourceString};`;
@@ -384,8 +384,8 @@ const astCodeToAddToModuleExports = (identifier, localName) =>
 const wildcardExport = (namespaceIdentifier) => {
   const namespaceAccessorString = namespaceIdentifier
     ? (types.isStringLiteral(namespaceIdentifier)
-        ? `['${namespaceIdentifier.value}']`
-        : `.${namespaceIdentifier.name}`)
+      ? `['${namespaceIdentifier.value}']`
+      : `.${namespaceIdentifier.name}`)
     : '';
   return template.ast(
     `const propertyNames = Object.getOwnPropertyNames(importedObject);
@@ -399,7 +399,7 @@ const wildcardExport = (namespaceIdentifier) => {
 const wrapImportedObject = (moduleName, asts) => {
   const resultAST = template.ast(
     `await (async function () {
-      const importedObject = await import('${moduleName}');
+      const importedObject = await importFunction('${moduleName}');
     })();`);
   resultAST.expression.argument.callee.body.body.push(...asts);
   return resultAST;
@@ -536,6 +536,7 @@ const changedNodesToCodeFragments = (nodes, key) => {
   const updatedParentFragments = new Set();
   for (const node of nodes) {
     const fragment = generate(node, { comments: false }, '').code.trim();
+    const isAsync = node._topLevelAwait;
     currentNodes.set(fragment, node);
     if (previousNodes.has(fragment) &&
       !(node.parentFragmentLabel &&
@@ -545,13 +546,13 @@ const changedNodesToCodeFragments = (nodes, key) => {
       if (node.fragmentLabel) {
         updatedParentFragments.add(node.fragmentLabel);
       }
-      toWrite.push(fragment);
+      toWrite.push({ code: fragment, isAsync });
     }
   }
   // Removal code for previousNodes that haven't been found in newq version.
   for (const node of previousNodes.values()) {
     if (node._removeCode) {
-      toRemove.push(node._removeCode);
+      toRemove.push({ code: node._removeCode, isAsync: false });
     }
   }
   previousNodesByKey.set(key, currentNodes);
