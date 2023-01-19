@@ -4,16 +4,32 @@ const { scopedEvaluator } = require('./evaluator.js');
 const { changedNodesToCodeFragments, prepareAST } = require('./transform.js');
 const fs = require('node:fs');
 
+const findPackageFile = (startingDir) => {
+  const testPackageFile = path.join(path.resolve(startingDir), 'package.json');
+  if (fs.existsSync(testPackageFile)) {
+    return testPackageFile;
+  } else {
+    const parent = path.dirname(startingDir);
+    if (parent !== startingDir) {
+      return findPackageFile(path.dirname(startingDir));
+    } else {
+      return undefined;
+    }
+  }
+};
+
 const isFileAsync = (filePath) => {
   if (filePath.endsWith('.mjs')) {
     return true;
   }
   try {
-    const packageFile = path.join(path.dirname(filePath), 'package.json');
-    const packageFileContents = fs.readFileSync(packageFile).toString();
-    const packageObject = JSON.parse(packageFileContents);
-    if (packageObject.type === 'module') {
-      return true;
+    const packageFile = findPackageFile(path.dirname(filePath));
+    if (packageFile !== undefined) {
+      const packageFileContents = fs.readFileSync(packageFile).toString();
+      const packageObject = JSON.parse(packageFileContents);
+      if (packageObject.type === 'module') {
+        return true;
+      }
     }
   } catch (e) {
     console.log(e);
