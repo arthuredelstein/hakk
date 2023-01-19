@@ -4,6 +4,8 @@ const { scopedEvaluator } = require('./evaluator.js');
 const { changedNodesToCodeFragments, prepareAST } = require('./transform.js');
 const fs = require('node:fs');
 
+class UnexpectedTopLevelAwaitFoundError extends Error { }
+
 const findPackageFile = (startingDir) => {
   const testPackageFile = path.join(path.resolve(startingDir), 'package.json');
   if (fs.existsSync(testPackageFile)) {
@@ -54,13 +56,13 @@ const watchForFileChanges = (path, interval, callback) => {
 const originalRequire = require;
 
 class Module {
-  constructor (filePath, moduleManager) {
-    console.log('loading ' + filePath);
+  constructor (filePath, moduleManager, isAsync) {
     this.filePath = filePath;
     this.moduleManager_ = moduleManager;
     this.dirPath = path.dirname(filePath);
     this.exports = {};
-    this.isAsync = isFileAsync(this.filePath);
+    this.isAsync = isAsync;
+    this.previousNodes = new Map();
     this.eval = scopedEvaluator(
       this.exports,
       (path) => this.require(path),
@@ -103,12 +105,24 @@ class Module {
 
   getLatestFragments () {
     const contents = fs.readFileSync(this.filePath, { encoding: 'utf8' }).toString();
-    return changedNodesToCodeFragments(prepareAST(contents).program.body, this.filePath);
+    const { latestNodes, fragments } = changedNodesToCodeFragments(
+      this.previousNodes, prepareAST(contents).program.body);
+    this.previousNodes = latestNodes;
+    return fragments;
   }
 
   updateFileSync () {
+    const latestFragments = this.getLatestFragments();
+    // First screen for top-level awaits.
+    for (const { isAsync } of latestFragments) {
+      if (isAsync) {
+        throw new UnexpectedTopLevelAwaitFoundError(
+          'Found a top-level await in a sync module.');
+      }
+    }
+    // Now evaluate each line of code.
     try {
-      for (const { code } of this.getLatestFragments()) {
+      for (const { code } of latestFragments) {
         this.eval(code);
       }
     } catch (e) {
@@ -140,10 +154,20 @@ class ModuleManager {
 
   static async create (rootModulePath) {
     const moduleManager = new ModuleManager();
-    if (isFileAsync(rootModulePath)) {
+    let fileIsAsync = isFileAsync(rootModulePath);
+    if (!fileIsAsync) {
+      try {
+        moduleManager.getModuleSync(rootModulePath);
+      } catch (e) {
+        if (e instanceof UnexpectedTopLevelAwaitFoundError) {
+          fileIsAsync = true;
+        } else {
+          throw e;
+        }
+      }
+    }
+    if (fileIsAsync) {
       await moduleManager.getModuleAsync(rootModulePath);
-    } else {
-      moduleManager.getModuleSync(rootModulePath);
     }
     return moduleManager;
   }
@@ -152,10 +176,11 @@ class ModuleManager {
     if (this.moduleMap_.has(filePath)) {
       return this.moduleMap_.get(filePath);
     } else {
-      const module = new Module(filePath, this);
+      const module = new Module(filePath, this, false);
       module.updateFileSync();
       this.moduleMap_.set(filePath, module);
       this.moduleCreationListeners_.forEach(listener => listener(filePath));
+      console.log('loaded CommonJS module: ' + filePath);
       return module;
     }
   }
@@ -164,10 +189,11 @@ class ModuleManager {
     if (this.moduleMap_.has(filePath)) {
       return this.moduleMap_.get(filePath);
     } else {
-      const module = new Module(filePath, this);
+      const module = new Module(filePath, this, true);
       await module.updateFileAsync();
       this.moduleMap_.set(filePath, module);
       this.moduleCreationListeners_.forEach(listener => listener(filePath));
+      console.log('loaded ES module: ' + filePath);
       return module;
     }
   }

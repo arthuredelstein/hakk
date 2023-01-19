@@ -526,12 +526,9 @@ const prepareAstNodes = (code) => {
   }
 };
 
-const previousNodesByKey = new Map();
-
-const changedNodesToCodeFragments = (nodes, key) => {
+const changedNodesToCodeFragments = (previousNodes, nodes) => {
   const toWrite = [];
   const toRemove = [];
-  const previousNodes = previousNodesByKey.get(key) ?? new Map();
   const currentNodes = new Map();
   const updatedParentFragments = new Set();
   for (const node of nodes) {
@@ -549,14 +546,14 @@ const changedNodesToCodeFragments = (nodes, key) => {
       toWrite.push({ code: fragment, isAsync });
     }
   }
-  // Removal code for previousNodes that haven't been found in newq version.
+  // Removal code for previousNodes that haven't been found in new version.
   for (const node of previousNodes.values()) {
     if (node._removeCode) {
       toRemove.push({ code: node._removeCode, isAsync: false });
     }
   }
-  previousNodesByKey.set(key, currentNodes);
-  return [].concat(toRemove, toWrite);
+  const fragments = [].concat(toRemove, toWrite);
+  return { fragments, latestNodes: currentNodes };
 };
 
 module.exports = { generate, parse, prepareAstNodes, prepareCode, prepareAST, changedNodesToCodeFragments };
