@@ -40,8 +40,7 @@ const isFileAsync = (filePath) => {
 };
 
 const isLocalPath = (path) =>
-  path.startsWith('./') || path.startsWith('../') ||
-  path.startsWith('/');
+  path.startsWith('./') || path.startsWith('../');
 
 const watchForFileChanges = (path, interval, callback) => {
   fs.watchFile(
