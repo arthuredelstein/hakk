@@ -91,16 +91,17 @@ const historyDir = () => {
 const monitorSpecialKeys = (replServer, modulePathManager) => {
   const originalTtyWrite = replServer._ttyWrite;
   replServer._ttyWrite = async (d, key) => {
-    if (key.meta === true && key.shift === false && key.ctrl === false) {
-      if (key.name === 'f') {
+    if (key.meta === false && key.shift === true && key.ctrl === false) {
+      if (key.name === 'up') {
         modulePathManager.forward();
         updatePrompt(replServer, modulePathManager);
-      } else if (key.name === 'b') {
+      } else if (key.name === 'down') {
         modulePathManager.back();
         updatePrompt(replServer, modulePathManager);
       }
+    } else {
+      originalTtyWrite(d, key);
     }
-    originalTtyWrite(d, key);
   };
 };
 
