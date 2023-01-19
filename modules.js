@@ -39,7 +39,7 @@ const originalRequire = require;
 
 class Module {
   constructor (filePath, moduleManager) {
-    console.log("creating module " + filePath);
+    console.log("loading " + filePath);
     this.filePath = filePath;
     this.moduleManager_ = moduleManager;
     this.dirPath = path.dirname(filePath);
@@ -55,7 +55,6 @@ class Module {
     const update = this.isAsync
       ? () => this.updateFileAsync()
       : () => this.updateFileSync();
-    update();
     watchForFileChanges(filePath, 100, () => {
       moduleManager.onUpdate(filePath);
       update();
@@ -66,7 +65,8 @@ class Module {
     const fullRequirePath = OriginalModule._resolveFilename(
       requirePath, null, false, { paths: [this.dirPath] });
     if (isLocalPath(requirePath)) {
-      const module = this.moduleManager_.getModule(fullRequirePath);
+      const module = this.moduleManager_.getModuleSync(fullRequirePath);
+      module.updateFileSync();
       return module.exports;
     } else {
       return originalRequire(fullRequirePath);
@@ -77,7 +77,8 @@ class Module {
     const fullImportPath = OriginalModule._resolveFilename(
       importPath, null, false, { paths: [this.dirPath] });
     if (isLocalPath(importPath)) {
-      const module = this.moduleManager_.getModule(fullImportPath);
+      const module = await this.moduleManager_.getModuleAsync(fullImportPath);
+      await module.updateFileAsync();
       return module.exports;
     } else {
       return await import(fullImportPath);
@@ -119,14 +120,36 @@ class ModuleManager {
     this.moduleCreationListeners_ = new Set();
     this.moduleUpdateListeners_ = new Set();
     this.moduleMap_ = new Map();
-    this.getModule(rootModulePath);
   }
 
-  getModule (filePath) {
+  static async create (rootModulePath) {
+    const moduleManager = new ModuleManager();
+    if (isFileAsync(rootModulePath)) {
+      await moduleManager.getModuleAsync(rootModulePath);
+    } else {
+      moduleManager.getModuleSync(rootModulePath);
+    }
+    return moduleManager;
+  }
+
+  getModuleSync (filePath) {
     if (this.moduleMap_.has(filePath)) {
       return this.moduleMap_.get(filePath);
     } else {
       const module = new Module(filePath, this);
+      module.updateFileSync();
+      this.moduleMap_.set(filePath, module);
+      this.moduleCreationListeners_.forEach(listener => listener(filePath));
+      return module;
+    }
+  }
+
+  async getModuleAsync (filePath) {
+    if (this.moduleMap_.has(filePath)) {
+      return this.moduleMap_.get(filePath);
+    } else {
+      const module = new Module(filePath, this);
+      await module.updateFileAsync();
       this.moduleMap_.set(filePath, module);
       this.moduleCreationListeners_.forEach(listener => listener(filePath));
       return module;
@@ -146,7 +169,7 @@ class ModuleManager {
   }
 
   evalInModule (filePath, code) {
-    return this.getModule(filePath).eval(code);
+    return this.moduleMap_.get(filePath).eval(code);
   }
 
   getModulePaths () {

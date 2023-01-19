@@ -4,7 +4,7 @@ const { Repl } = require('./repl.js');
 
 const run = async (filename) => {
   const filenameFullPath = path.resolve(filename);
-  const moduleManager = new ModuleManager(filenameFullPath);
+  const moduleManager = await ModuleManager.create(filenameFullPath);
   await Repl.start(moduleManager);
 };
 
