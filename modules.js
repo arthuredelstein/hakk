@@ -9,10 +9,10 @@ const isFileAsync = (filePath) => {
     return true;
   }
   try {
-    const packageFile = path.join(path.dirname(filePath), "package.json");
+    const packageFile = path.join(path.dirname(filePath), 'package.json');
     const packageFileContents = fs.readFileSync(packageFile).toString();
     const packageObject = JSON.parse(packageFileContents);
-    if (packageObject["type"] === "module") {
+    if (packageObject.type === 'module') {
       return true;
     }
   } catch (e) {
@@ -39,7 +39,7 @@ const originalRequire = require;
 
 class Module {
   constructor (filePath, moduleManager) {
-    console.log("loading " + filePath);
+    console.log('loading ' + filePath);
     this.filePath = filePath;
     this.moduleManager_ = moduleManager;
     this.dirPath = path.dirname(filePath);

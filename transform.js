@@ -384,8 +384,8 @@ const astCodeToAddToModuleExports = (identifier, localName) =>
 const wildcardExport = (namespaceIdentifier) => {
   const namespaceAccessorString = namespaceIdentifier
     ? (types.isStringLiteral(namespaceIdentifier)
-      ? `['${namespaceIdentifier.value}']`
-      : `.${namespaceIdentifier.name}`)
+        ? `['${namespaceIdentifier.value}']`
+        : `.${namespaceIdentifier.name}`)
     : '';
   return template.ast(
     `const propertyNames = Object.getOwnPropertyNames(importedObject);
