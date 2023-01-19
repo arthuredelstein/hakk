@@ -54,9 +54,13 @@ const watchForFileChanges = (path, interval, callback) => {
 
 const originalRequire = require;
 
+const originalResolveFilename = (localPath, dirPath) =>
+  OriginalModule._resolveFilename(
+    localPath, null, false, { paths: [dirPath] });
+
 class Module {
   constructor (filePath, moduleManager, isAsync) {
-    this.filePath = filePath;
+    this.filePath = path.resolve(filePath);
     this.moduleManager_ = moduleManager;
     this.dirPath = path.dirname(filePath);
     this.exports = {};
@@ -72,15 +76,14 @@ class Module {
     const update = this.isAsync
       ? () => this.updateFileAsync()
       : () => this.updateFileSync();
-    watchForFileChanges(filePath, 100, () => {
-      moduleManager.onUpdate(filePath);
+    watchForFileChanges(this.filePath, 100, () => {
+      moduleManager.onUpdate(this.filePath);
       update();
     });
   }
 
   require (requirePath) {
-    const fullRequirePath = OriginalModule._resolveFilename(
-      requirePath, null, false, { paths: [this.dirPath] });
+    const fullRequirePath = originalResolveFilename(requirePath, this.dirPath);
     if (isLocalPath(requirePath)) {
       const module = this.moduleManager_.getModuleSync(fullRequirePath);
       module.updateFileSync();
@@ -91,8 +94,7 @@ class Module {
   }
 
   async importFunction (importPath) {
-    const fullImportPath = OriginalModule._resolveFilename(
-      importPath, null, false, { paths: [this.dirPath] });
+    const fullImportPath = originalResolveFilename(importPath, this.dirPath);
     if (isLocalPath(importPath)) {
       const module = await this.moduleManager_.getModuleAsync(fullImportPath);
       await module.updateFileAsync();
@@ -145,18 +147,19 @@ class Module {
 }
 
 class ModuleManager {
-  constructor (rootModulePath) {
+  constructor () {
     this.moduleCreationListeners_ = new Set();
     this.moduleUpdateListeners_ = new Set();
     this.moduleMap_ = new Map();
   }
 
   static async create (rootModulePath) {
+    const rootModuleFullPath = path.resolve(rootModulePath);
     const moduleManager = new ModuleManager();
-    let fileIsAsync = isFileAsync(rootModulePath);
+    let fileIsAsync = isFileAsync(rootModuleFullPath);
     if (!fileIsAsync) {
       try {
-        moduleManager.getModuleSync(rootModulePath);
+        moduleManager.getModuleSync(rootModuleFullPath);
       } catch (e) {
         if (e instanceof UnexpectedTopLevelAwaitFoundError) {
           fileIsAsync = true;
@@ -166,7 +169,7 @@ class ModuleManager {
       }
     }
     if (fileIsAsync) {
-      await moduleManager.getModuleAsync(rootModulePath);
+      await moduleManager.getModuleAsync(rootModuleFullPath);
     }
     return moduleManager;
   }
