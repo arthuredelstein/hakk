@@ -53,7 +53,6 @@ const handleAwaitExpression = (path) => {
       return;
     }
     const identifierNames = findNestedIdentifierValues(declarator.node.id);
-    console.log(identifierNames);
     const outputs = [
       template.ast(`var ${identifierNames.join(", ")};`),
       {
@@ -505,7 +504,6 @@ const prepareAST = (code) => {
     return '';
   }
   const ast = parse(code);
-  // console.log(varVisitor.VariableDeclaration.toString());
   return transform(ast,
     [importVisitor, exportVisitor, superVisitor, staticBlockVisitor,
       objectVisitor, classVisitor, varVisitor, awaitVisitor]);
