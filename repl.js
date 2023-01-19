@@ -73,7 +73,7 @@ class ModulePathManager {
 }
 
 const fileBasedPrompt = (filenameFullPath) => {
-  const filename = path.basename(filenameFullPath);
+  const filename = path.relative('.', filenameFullPath);
   return `${filename}> `;
 };
 

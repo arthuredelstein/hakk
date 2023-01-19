@@ -180,7 +180,7 @@ class ModuleManager {
       module.updateFileSync();
       this.moduleMap_.set(filePath, module);
       this.moduleCreationListeners_.forEach(listener => listener(filePath));
-      console.log('loaded CommonJS module: ' + filePath);
+      console.log('loaded CommonJS module: ' + path.relative('.', filePath));
       return module;
     }
   }
@@ -193,7 +193,7 @@ class ModuleManager {
       await module.updateFileAsync();
       this.moduleMap_.set(filePath, module);
       this.moduleCreationListeners_.forEach(listener => listener(filePath));
-      console.log('loaded ES module: ' + filePath);
+      console.log('loaded ES module: ' + path.relative('.', filePath));
       return module;
     }
   }
