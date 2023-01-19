@@ -15,6 +15,32 @@ const getEnclosingFunction = path => path.findParent((path) => path.isFunction()
 
 const getEnclosingVariableDeclarator = path => path.findParent((path) => path.isVariableDeclarator());
 
+const findNestedIdentifierValues = (node) => {
+  const identifierValuesFound = [];
+  if (types.isObjectPattern(node)) {
+    for (const property of node.properties) {
+      if (types.isIdentifier(property.value)) {
+        identifierValuesFound.push(property.value.name);
+      } else {
+        const moreValuesFound = findNestedIdentifierValues(property.value);
+        identifierValuesFound.push(...moreValuesFound);
+      }
+    }
+  } else if (types.isArrayPattern(node)) {
+    for (const element of node.elements) {
+      if (types.isIdentifier(element)) {
+        identifierValuesFound.push(element.name);
+      } else {
+        const moreValuesFound = findNestedIdentifierValues(element);
+        identifierValuesFound.push(...moreValuesFound);
+      }
+    }
+  } else if (types.isIdentifier(node)) {
+    identifierValuesFound.push(node.name);
+  }
+  return identifierValuesFound;
+};
+
 const handleAwaitExpression = (path) => {
   if (getEnclosingFunction(path)) {
     return;
@@ -22,31 +48,23 @@ const handleAwaitExpression = (path) => {
   const topPath = path.find((path) => path.parentPath.isProgram());
   topPath.node._topLevelAwait = true;
   const declarator = getEnclosingVariableDeclarator(path);
-  const outputs = [];
   if (declarator) {
     if (!types.isProgram(declarator.parentPath.parentPath)) {
       return;
     }
-    outputs.push({
-      type: 'VariableDeclaration',
-      declarations: [
-        {
-          type: 'VariableDeclarator',
-          id: declarator.node.id,
-          init: null
+    const identifierNames = findNestedIdentifierValues(declarator.node.id);
+    console.log(identifierNames);
+    const outputs = [
+      template.ast(`var ${identifierNames.join(", ")};`),
+      {
+        type: 'ExpressionStatement',
+        expression: {
+          type: 'AssignmentExpression',
+          operator: '=',
+          left: declarator.node.id,
+          right: declarator.node.init
         }
-      ],
-      kind: declarator.parent.kind
-    });
-    outputs.push({
-      type: 'ExpressionStatement',
-      expression: {
-        type: 'AssignmentExpression',
-        operator: '=',
-        left: declarator.node.id,
-        right: declarator.node.init
-      }
-    });
+      }];
     declarator.parentPath.replaceWithMultiple(outputs);
   }
 };
@@ -367,8 +385,8 @@ const astCodeToAddToModuleExports = (identifier, localName) =>
 const wildcardExport = (namespaceIdentifier) => {
   const namespaceAccessorString = namespaceIdentifier
     ? (types.isStringLiteral(namespaceIdentifier)
-        ? `['${namespaceIdentifier.value}']`
-        : `.${namespaceIdentifier.name}`)
+      ? `['${namespaceIdentifier.value}']`
+      : `.${namespaceIdentifier.name}`)
     : '';
   return template.ast(
     `const propertyNames = Object.getOwnPropertyNames(importedObject);
