@@ -96,38 +96,38 @@ testTransform(
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#syntax
 
 testTransform('import defaultExport from "module-name";',
-  "var { default: defaultExport } = await import('module-name');");
+  "var defaultExport; ({ default: defaultExport } = await importFunction('module-name'));");
 
 testTransform('import * as name from "module-name";',
-  "var name; name = await import('module-name');");
+  "var name; name = await importFunction('module-name');");
 
 testTransform('import { export1 } from "module-name";',
-  "var { export1 } = await import('module-name');");
+  "var export1; ({ export1 } = await importFunction('module-name'));");
 
 testTransform('import { export1 as alias1 } from "module-name";',
-  "var { export1: alias1 } = await import('module-name');");
+  "var alias1; ({ export1: alias1 } = await importFunction('module-name'));");
 
 testTransform('import { default as alias } from "module-name";',
-  "var { default: alias } = await import('module-name');");
+  "var alias; ({ default: alias } = await importFunction('module-name'));");
 
 testTransform('import { export1, export2 } from "module-name";',
-  "var { export1, export2 } = await import('module-name');");
+  "var export1, export2; ({ export1, export2 } = await importFunction('module-name'));");
 
 testTransform('import { export1, export2 as alias2 } from "module-name";',
-  "var { export1, export2: alias2 } = await import('module-name');");
+  "var export1, alias2; ({ export1, export2: alias2 } = await importFunction('module-name'));");
 
 testTransform('import { "string name" as alias } from "module-name";',
-  "var { 'string name': alias } = await import('module-name');");
+  "var alias; ({ 'string name': alias } = await importFunction('module-name'));");
 
 testTransform('import defaultExport, { export1 } from "module-name";',
-  "var { default: defaultExport, export1 } = await import('module-name');");
+  "var defaultExport, export1; ({ default: defaultExport, export1 } = await importFunction('module-name'));");
 
 testTransform('import defaultExport, * as name from "module-name";',
-  `var name; name = await import('module-name');
+  `var name; name = await importFunction('module-name');
   var { default: defaultExport } = name;`);
 
 testTransform('import "module-name";',
-  "await import('module-name');");
+  "await importFunction('module-name');");
 
 // ## `export` syntax
 // TODO: Test all cases shown in
@@ -210,7 +210,7 @@ testTransform('export default function* () { /* … */ }',
 
 testTransform('export * from "my-module-name"',
   `await async function () {
-    const importedObject = await import('my-module-name');
+    const importedObject = await importFunction('my-module-name');
     const propertyNames = Object.getOwnPropertyNames(importedObject);
     for (const propertyName of propertyNames) {
       if (propertyName !== 'default') {
@@ -221,7 +221,7 @@ testTransform('export * from "my-module-name"',
 
 testTransform('export * as name1 from "module-name";',
   `await async function () {
-    const importedObject = await import('module-name');
+    const importedObject = await importFunction('module-name');
     const propertyNames = Object.getOwnPropertyNames(importedObject);
     for (const propertyName of propertyNames) {
       if (propertyName !== 'default') {
@@ -232,14 +232,14 @@ testTransform('export * as name1 from "module-name";',
 
 testTransform('export { name1, /* …, */ nameN } from "module-name";',
   `await async function () {
-    const importedObject = await import('module-name');
+    const importedObject = await importFunction('module-name');
     module.exports.name1 = importedObject.name1;
     module.exports.nameN = importedObject.nameN;
   }();`);
 
 testTransform('export { import1 as name1, import2 as name2, /* …, */ nameN } from "module-name";',
   `await async function () {
-    const importedObject = await import('module-name');
+    const importedObject = await importFunction('module-name');
     module.exports.name1 = importedObject.import1;
     module.exports.name2 = importedObject.import2;
     module.exports.nameN = importedObject.nameN;
@@ -247,6 +247,6 @@ testTransform('export { import1 as name1, import2 as name2, /* …, */ nameN } f
 
 testTransform('export { default, /* …, */ } from "module-name";',
   `await async function () {
-    const importedObject = await import('module-name');
+    const importedObject = await importFunction('module-name');
     module.exports.default = importedObject.default;
 }();`);
