@@ -54,7 +54,7 @@ const handleAwaitExpression = (path) => {
     }
     const identifierNames = findNestedIdentifierValues(declarator.node.id);
     const outputs = [
-      template.ast(`var ${identifierNames.join(", ")};`),
+      template.ast(`var ${identifierNames.join(', ')};`),
       {
         type: 'ExpressionStatement',
         expression: {
@@ -384,8 +384,8 @@ const astCodeToAddToModuleExports = (identifier, localName) =>
 const wildcardExport = (namespaceIdentifier) => {
   const namespaceAccessorString = namespaceIdentifier
     ? (types.isStringLiteral(namespaceIdentifier)
-      ? `['${namespaceIdentifier.value}']`
-      : `.${namespaceIdentifier.name}`)
+        ? `['${namespaceIdentifier.value}']`
+        : `.${namespaceIdentifier.name}`)
     : '';
   return template.ast(
     `const propertyNames = Object.getOwnPropertyNames(importedObject);
