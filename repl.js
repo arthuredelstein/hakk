@@ -154,6 +154,9 @@ class Repl {
 
   updateUnderscores (lastResult) {
     const vars = this.moduleManager_.getVars(this.modulePathManager_.current());
+    global.________ = global._______;
+    global._______ = global.______;
+    global.______ = global._____;
     global._____ = global.____;
     global.____ = global.___;
     global.___ = global.__;
