@@ -66,6 +66,7 @@ class Module {
     this.exports = {};
     this.isAsync = isAsync;
     this.previousNodes = new Map();
+    this.currentVars = new Set();
     this.eval = scopedEvaluator(
       this.exports,
       (path) => this.require(path),
@@ -123,8 +124,14 @@ class Module {
     }
     // Now evaluate each line of code.
     try {
-      for (const { code } of latestFragments) {
+      for (const { code, addedVars, deletedVars } of latestFragments) {
         this.eval(code);
+        if (deletedVars) {
+          deletedVars.forEach(v => this.currentVars.delete(v));
+        }
+        if (addedVars) {
+          addedVars.forEach(v => this.currentVars.add(v));
+        }
       }
     } catch (e) {
       console.error(e);
@@ -133,11 +140,17 @@ class Module {
 
   async updateFileAsync () {
     try {
-      for (const { code, isAsync } of this.getLatestFragments()) {
+      for (const { code, isAsync, addedVars, deletedVars } of this.getLatestFragments()) {
         if (!isAsync) {
           this.eval(code);
         } else {
           await this.eval(`(async () => { ${code} })();`);
+        }
+        if (deletedVars) {
+          deletedVars.forEach(v => this.currentVars.delete(v));
+        }
+        if (addedVars) {
+          addedVars.forEach(v => this.currentVars.add(v));
         }
       }
     } catch (e) {
@@ -218,6 +231,10 @@ class ModuleManager {
 
   getModulePaths () {
     return [...this.moduleMap_.keys()].reverse();
+  }
+
+  getVars (filePath) {
+    return [...this.moduleMap_.get(filePath).currentVars].sort();
   }
 }
 

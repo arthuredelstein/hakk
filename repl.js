@@ -92,10 +92,10 @@ const monitorSpecialKeys = (replServer, modulePathManager) => {
   const originalTtyWrite = replServer._ttyWrite;
   replServer._ttyWrite = async (d, key) => {
     const shiftOnly = key.meta === false && key.shift === true && key.ctrl === false;
-    if (shiftOnly && key.name === 'up') {
+    if (shiftOnly && key.name === 'right') {
       modulePathManager.forward();
       updatePrompt(replServer, modulePathManager);
-    } else if (shiftOnly && key.name === 'down') {
+    } else if (shiftOnly && key.name === 'left') {
       modulePathManager.back();
       updatePrompt(replServer, modulePathManager);
     } else {
@@ -123,7 +123,16 @@ class Repl {
       eval: (code, context, filename, callback) =>
         this.eval(code, context, filename, callback)
     };
+    console.log('Use shift+left and shift+right to switch between modules.');
     this.replServer_ = new repl.REPLServer(options);
+    const originalCompleter = this.replServer_.completer;
+    this.replServer_.completer = (text, cb) => {
+      originalCompleter(text, (a, [completions, stub]) => {
+        const vars = moduleManager.getVars(this.modulePathManager_.current());
+        completions.push('', ...vars.filter(v => v.startsWith(text)));
+        cb(a, [completions, stub]);
+      });
+    };
     this.moduleManager_.addModuleUpdateListener(filename => this.update(filename));
     monitorSpecialKeys(this.replServer_, this.modulePathManager_);
   }

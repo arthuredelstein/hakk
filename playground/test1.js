@@ -29,7 +29,7 @@ const foo = (a) => {
 };
 
 class MyClass {
-  constructor() {
+  constructor () {
     this.q_ = 13;
   }
   myField = 0;
@@ -143,10 +143,6 @@ const reverse = (s) => {
 const join = (a, b) => {
   return toTitleCase(a) + " " + toTitleCase(b);
 };
-
-//if (import.meta === "blah") {
-//  console.log("hi");
-//}
 
 test2.bar();
 

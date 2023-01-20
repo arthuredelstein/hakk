@@ -90,8 +90,17 @@ const handleVariableDeclaration = (path) => {
 };
 
 const varVisitor = {
-  VariableDeclaration (path) {
-    handleVariableDeclaration(path);
+  VariableDeclaration: {
+    enter (path) {
+      handleVariableDeclaration(path);
+    },
+    exit (path) {
+      const identifierValues = [];
+      for (const declarator of path.node.declarations) {
+        identifierValues.push(...findNestedIdentifierValues(declarator.id));
+      }
+      path.node.identifiers = identifierValues;
+    }
   }
 };
 
@@ -543,13 +552,13 @@ const changedNodesToCodeFragments = (previousNodes, nodes) => {
       if (node.fragmentLabel) {
         updatedParentFragments.add(node.fragmentLabel);
       }
-      toWrite.push({ code: fragment, isAsync });
+      toWrite.push({ code: fragment, isAsync, addedVars: node.identifiers });
     }
   }
   // Removal code for previousNodes that haven't been found in new version.
   for (const node of previousNodes.values()) {
     if (node._removeCode) {
-      toRemove.push({ code: node._removeCode, isAsync: false });
+      toRemove.push({ code: node._removeCode, isAsync: false, deletedVars: node.identifiers });
     }
   }
   const fragments = [].concat(toRemove, toWrite);
