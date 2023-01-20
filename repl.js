@@ -121,16 +121,17 @@ class Repl {
       useColors: true,
       prompt: fileBasedPrompt(this.modulePathManager_.current()),
       eval: (code, context, filename, callback) =>
-        this.eval(code, context, filename, callback)
+        this.eval(code, context, filename, callback),
+      preview: false
     };
     console.log('Use shift+left and shift+right to switch between modules.');
     this.replServer_ = new repl.REPLServer(options);
     const originalCompleter = this.replServer_.completer;
     this.replServer_.completer = (text, cb) => {
-      originalCompleter(text, (a, [completions, stub]) => {
+      originalCompleter(text, (error, [completions, stub]) => {
         const vars = moduleManager.getVars(this.modulePathManager_.current());
         completions.push('', ...vars.filter(v => v.startsWith(text)));
-        cb(a, [completions, stub]);
+        cb(error, [completions, stub ?? '']);
       });
     };
     this.moduleManager_.addModuleUpdateListener(filename => this.update(filename));
