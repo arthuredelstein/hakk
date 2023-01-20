@@ -151,6 +151,19 @@ class Repl {
     updatePrompt(this.replServer_, this.modulePathManager_);
   }
 
+  updateUnderscores (lastResult) {
+    const vars = this.moduleManager_.getVars(this.modulePathManager_.current());
+    global._____ = global.____;
+    global.____ = global.___;
+    global.___ = global.__;
+    if (vars.includes('_')) {
+      global.__ = lastResult;
+    } else {
+      global.__ = global._;
+      global._ = lastResult;
+    }
+  }
+
   async eval (code, context, filename, callback) {
     let nodes;
     try {
@@ -178,6 +191,7 @@ class Repl {
         } else {
           result = evalInCurrentModule(modifiedCode, node.identifiers);
         }
+        this.updateUnderscores(result);
       } catch (e) {
         return callback(e);
       }
