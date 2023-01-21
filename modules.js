@@ -225,11 +225,11 @@ class ModuleManager {
     this.moduleUpdateListeners_.forEach(listener => listener(filePath));
   }
 
-  evalInModule (filePath, code, identifiers) {
+  evalInModule (filePath, code, definedVars) {
     const module = this.moduleMap_.get(filePath);
     const result = module.eval(code);
-    if (identifiers) {
-      identifiers.forEach(v => module.currentVars.add(v));
+    if (definedVars) {
+      definedVars.forEach(v => module.currentVars.add(v));
     }
     return result;
   }

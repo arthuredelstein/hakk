@@ -182,18 +182,18 @@ class Repl {
     if (nodes.length === 0) {
       return callback(null);
     }
-    const evalInCurrentModule = (code, identifiers) =>
+    const evalInCurrentModule = (code, definedVars) =>
       this.moduleManager_.evalInModule(
-        this.modulePathManager_.current(), code, identifiers);
+        this.modulePathManager_.current(), code, definedVars);
     let result;
     for (const node of nodes) {
       const modifiedCode = generate(node).code;
       try {
         if (node._topLevelAwait) {
           result = await evalInCurrentModule(
-            `(async () => { return ${modifiedCode} })()`, node.identifiers);
+            `(async () => { return ${modifiedCode} })()`, node._definedVars);
         } else {
-          result = evalInCurrentModule(modifiedCode, node.identifiers);
+          result = evalInCurrentModule(modifiedCode, node._definedVars);
         }
         this.updateUnderscores(result);
       } catch (e) {

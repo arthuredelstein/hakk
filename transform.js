@@ -99,7 +99,7 @@ const varVisitor = {
       for (const declarator of path.node.declarations) {
         identifierValues.push(...findNestedIdentifierValues(declarator.id));
       }
-      path.node.identifiers = identifierValues;
+      path.node._definedVars = identifierValues;
     }
   }
 };
@@ -552,13 +552,13 @@ const changedNodesToCodeFragments = (previousNodes, nodes) => {
       if (node.fragmentLabel) {
         updatedParentFragments.add(node.fragmentLabel);
       }
-      toWrite.push({ code: fragment, isAsync, addedVars: node.identifiers });
+      toWrite.push({ code: fragment, isAsync, addedVars: node._definedVars });
     }
   }
   // Removal code for previousNodes that haven't been found in new version.
   for (const node of previousNodes.values()) {
     if (node._removeCode) {
-      toRemove.push({ code: node._removeCode, isAsync: false, deletedVars: node.identifiers });
+      toRemove.push({ code: node._removeCode, isAsync: false, deletedVars: node._definedVars });
     }
   }
   const fragments = [].concat(toRemove, toWrite);
