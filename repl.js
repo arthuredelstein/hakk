@@ -72,6 +72,9 @@ class ModulePathManager {
   }
 }
 
+const caselessStartsWith = (a, b) =>
+  a.toLowerCase().startsWith(b.toLowerCase());
+
 const fileBasedPrompt = (filenameFullPath) => {
   const filename = path.relative('.', filenameFullPath);
   return `${filename}> `;
@@ -130,7 +133,7 @@ class Repl {
     this.replServer_.completer = (text, cb) => {
       originalCompleter(text, (error, [completions, stub]) => {
         const vars = moduleManager.getVars(this.modulePathManager_.current());
-        completions.push('', ...vars.filter(v => v.startsWith(text)));
+        completions.push('', ...vars.filter(v => caselessStartsWith(v, text)));
         cb(error, [completions, stub ?? '']);
       });
     };
