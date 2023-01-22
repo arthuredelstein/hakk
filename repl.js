@@ -133,7 +133,7 @@ class Repl {
     this.replServer_.completer = (text, cb) => {
       originalCompleter(text, (error, [completions, stub]) => {
         const vars = moduleManager.getVars(this.modulePathManager_.current());
-        completions.push('', ...vars.filter(v => caselessStartsWith(v, text)));
+        completions.push('', ...vars.filter(v => caselessStartsWith(v, stub)));
         cb(error, [completions, stub ?? '']);
       });
     };
