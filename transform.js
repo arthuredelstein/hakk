@@ -86,6 +86,9 @@ const handleVariableDeclarationEnter = (path) => {
 };
 
 const handleVariableDeclarationExit = (path) => {
+  if (!types.isProgram(path.parentPath)) {
+    return;
+  }
   const identifierValues = [];
   for (const declarator of path.node.declarations) {
     identifierValues.push(...findNestedIdentifierValues(declarator.id));
@@ -532,7 +535,7 @@ const prepareAST = (code) => {
   const ast = parse(code);
   return transform(ast,
     [importVisitor, exportVisitor, superVisitor, staticBlockVisitor,
-      objectVisitor, classVisitor, varVisitor, awaitVisitor]);
+      objectVisitor, classVisitor, awaitVisitor, varVisitor]);
 };
 
 const prepareCode = (code) => {
