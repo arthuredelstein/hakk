@@ -74,7 +74,7 @@ const awaitVisitor = {
   }
 };
 
-const handleVariableDeclaration = (path) => {
+const handleVariableDeclarationEnter = (path) => {
   if (!types.isProgram(path.parentPath)) {
     return;
   }
@@ -83,23 +83,26 @@ const handleVariableDeclaration = (path) => {
       d => types.variableDeclaration('var', [d]));
     path.replaceWithMultiple(outputNodes);
   }
-  if (path.node && path.node.kind === 'var' && path.node.declarations.length === 1) {
-    const varName = path.node.declarations[0].id.name;
-    path.node._removeCode = `${varName} = undefined;`;
+};
+
+const handleVariableDeclarationExit = (path) => {
+  const identifierValues = [];
+  for (const declarator of path.node.declarations) {
+    identifierValues.push(...findNestedIdentifierValues(declarator.id));
   }
+  path.node._definedVars = identifierValues;
+  path.node._removeCode = identifierValues
+    .map(identifier => `${identifier} = undefined;`)
+    .join('\n');
 };
 
 const varVisitor = {
   VariableDeclaration: {
     enter (path) {
-      handleVariableDeclaration(path);
+      handleVariableDeclarationEnter(path);
     },
     exit (path) {
-      const identifierValues = [];
-      for (const declarator of path.node.declarations) {
-        identifierValues.push(...findNestedIdentifierValues(declarator.id));
-      }
-      path.node._definedVars = identifierValues;
+      handleVariableDeclarationExit(path);
     }
   }
 };
@@ -313,7 +316,7 @@ const classVisitor = {
     }
   },
   ClassDeclaration: {
-    exit (path) {
+    enter (path) {
       // Only modify top-level class declarations.
       if (!types.isProgram(path.parentPath)) {
         return;
@@ -326,6 +329,20 @@ const classVisitor = {
       declaration.init.id.name = classNode.id.name;
       declaration.init.body = classNode.body;
       declaration.init.superClass = classNode.superClass;
+      path.replaceWith(expression);
+    }
+  },
+  FunctionDeclaration: {
+    enter (path) {
+      if (!types.isProgram(path.parentPath)) {
+        return;
+      }
+      const functionNode = path.node;
+      const expression = template.ast('var aFunction = function aFunction () {}');
+      const declaration = expression.declarations[0];
+      declaration.id.name = functionNode.id.name;
+      declaration.init.id.name = functionNode.id.name;
+      declaration.init.body = functionNode.body;
       path.replaceWith(expression);
     }
   }
