@@ -1,8 +1,8 @@
 module.exports = {
-  scopedEvaluator: (exports, require, module, filePath, dirPath, importFunction) => {
+  scopedEvaluator: (exports, require, module, filePath, dirPath, __import) => {
     // Create a generator that reads a value on yield
     // evaluates it, and sends the result back.
-    const generator = function * (exports, require, module, __filename, __dirname, importFunction) {
+    const generator = function * (exports, require, module, __filename, __dirname, __import) {
       let valueToSend;
       while (true) {
         const receivedValue = yield valueToSend;
@@ -17,7 +17,7 @@ module.exports = {
       }
     };
     // Run the generator.
-    const iterator = generator(exports, require, module, filePath, dirPath, importFunction);
+    const iterator = generator(exports, require, module, filePath, dirPath, __import);
     // Discard first empty value.
     iterator.next();
     // Return an evaluation function that takes code and returns the result of

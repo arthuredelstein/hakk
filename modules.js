@@ -3,6 +3,7 @@ const { Module: OriginalModule } = require('node:module');
 const { scopedEvaluator } = require('./evaluator.js');
 const { changedNodesToCodeFragments, prepareAST } = require('./transform.js');
 const fs = require('node:fs');
+const url = require('url');
 
 class UnexpectedTopLevelAwaitFoundError extends Error { }
 
@@ -67,13 +68,15 @@ class Module {
     this.isAsync = isAsync;
     this.previousNodes = new Map();
     this.currentVars = new Set();
+    const __import = (path) => this.__import(path);
+    __import.meta = { url: url.pathToFileURL(this.filePath).href };
     this.eval = scopedEvaluator(
       this.exports,
       (path) => this.require(path),
       this,
       this.filePath,
       this.dirPath,
-      (path) => this.importFunction(path));
+      __import);
     const update = this.isAsync
       ? () => this.updateFileAsync()
       : () => this.updateFileSync();
@@ -94,7 +97,7 @@ class Module {
     }
   }
 
-  async importFunction (importPath) {
+  async __import (importPath) {
     const fullImportPath = originalResolveFilename(importPath, this.dirPath);
     if (isLocalPath(importPath)) {
       const module = await this.moduleManager_.getModuleAsync(fullImportPath);

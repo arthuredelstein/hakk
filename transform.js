@@ -110,7 +110,7 @@ const varVisitor = {
 const importVisitor = {
   MetaProperty (path) {
     if (path.node.meta.name === 'import') {
-      path.replaceWith(template.ast('_IMPORT_'));
+      path.replaceWith(template.ast('__import.meta'));
     }
   },
   ImportDeclaration (path) {
@@ -136,7 +136,7 @@ const importVisitor = {
         namespaceId = specifier.local.name;
       }
     }
-    const sourceString = `await importFunction('${source}')`;
+    const sourceString = `await __import('${source}')`;
     let line = '';
     if (namespaceId !== undefined) {
       line += `const ${namespaceId} = ${sourceString};`;
@@ -425,7 +425,7 @@ const wildcardExport = (namespaceIdentifier) => {
 const wrapImportedObject = (moduleName, asts) => {
   const resultAST = template.ast(
     `await (async function () {
-      const importedObject = await importFunction('${moduleName}');
+      const importedObject = await __import('${moduleName}');
     })();`);
   resultAST.expression.argument.callee.body.body.push(...asts);
   return resultAST;
