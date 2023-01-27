@@ -116,6 +116,15 @@ class Module {
     return fragments;
   }
 
+  updateCurrentVars ({ deletedVars, addedVars }) {
+    if (deletedVars) {
+      deletedVars.forEach(v => this.currentVars.delete(v));
+    }
+    if (addedVars) {
+      addedVars.forEach(v => this.currentVars.add(v));
+    }
+  }
+
   updateFileSync () {
     const latestFragments = this.getLatestFragments();
     // First screen for top-level awaits.
@@ -129,12 +138,7 @@ class Module {
     try {
       for (const { code, addedVars, deletedVars } of latestFragments) {
         this.eval(code);
-        if (deletedVars) {
-          deletedVars.forEach(v => this.currentVars.delete(v));
-        }
-        if (addedVars) {
-          addedVars.forEach(v => this.currentVars.add(v));
-        }
+        this.updateCurrentVars({ addedVars, deletedVars });
       }
     } catch (e) {
       console.error(e);
@@ -144,17 +148,12 @@ class Module {
   async updateFileAsync () {
     try {
       for (const { code, isAsync, addedVars, deletedVars } of this.getLatestFragments()) {
-        if (!isAsync) {
-          this.eval(code);
-        } else {
+        if (isAsync) {
           await this.eval(`(async () => { ${code} })();`);
+        } else {
+          this.eval(code);
         }
-        if (deletedVars) {
-          deletedVars.forEach(v => this.currentVars.delete(v));
-        }
-        if (addedVars) {
-          addedVars.forEach(v => this.currentVars.add(v));
-        }
+        this.updateCurrentVars({ addedVars, deletedVars });
       }
     } catch (e) {
       console.error(e);
