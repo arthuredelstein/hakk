@@ -73,7 +73,7 @@ class ModulePathManager {
 }
 
 const caselessStartsWith = (a, b) =>
-  a.toLowerCase().startsWith(b.toLowerCase());
+  a.toLowerCase().startsWith((b ?? '').toLowerCase());
 
 const fileBasedPrompt = (filenameFullPath) => {
   const filename = path.relative('.', filenameFullPath);
