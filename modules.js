@@ -116,12 +116,12 @@ class Module {
     return fragments;
   }
 
-  updateCurrentVars ({ deletedVars, addedVars }) {
+  updateCurrentVars ({ deletedVars, addedOrChangedVars }) {
     if (deletedVars) {
       deletedVars.forEach(v => this.currentVars.delete(v));
     }
-    if (addedVars) {
-      addedVars.forEach(v => this.currentVars.add(v));
+    if (addedOrChangedVars) {
+      addedOrChangedVars.forEach(v => this.currentVars.add(v));
     }
   }
 
@@ -136,9 +136,9 @@ class Module {
     }
     // Now evaluate each line of code.
     try {
-      for (const { code, addedVars, deletedVars } of latestFragments) {
+      for (const { code, addedOrChangedVars, deletedVars } of latestFragments) {
         this.eval(code);
-        this.updateCurrentVars({ addedVars, deletedVars });
+        this.updateCurrentVars({ addedOrChangedVars, deletedVars });
       }
     } catch (e) {
       console.error(e);
@@ -147,13 +147,13 @@ class Module {
 
   async updateFileAsync () {
     try {
-      for (const { code, isAsync, addedVars, deletedVars } of this.getLatestFragments()) {
+      for (const { code, isAsync, addedOrChangedVars, deletedVars } of this.getLatestFragments()) {
         if (isAsync) {
           await this.eval(`(async () => { ${code} })();`);
         } else {
           this.eval(code);
         }
-        this.updateCurrentVars({ addedVars, deletedVars });
+        this.updateCurrentVars({ addedOrChangedVars, deletedVars });
       }
     } catch (e) {
       console.error(e);
@@ -230,9 +230,7 @@ class ModuleManager {
   evalInModule (filePath, code, definedVars) {
     const module = this.moduleMap_.get(filePath);
     const result = module.eval(code);
-    if (definedVars) {
-      definedVars.forEach(v => module.currentVars.add(v));
-    }
+    module.updateCurrentVars({ addedOrChangedVars: definedVars });
     return result;
   }
 

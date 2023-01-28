@@ -274,7 +274,7 @@ const nodesForClass = ({ className, classBodyNodes }) => {
     }
   }
   outputNodes.forEach(function (outputNode) {
-    outputNode.parentFragmentLabel = className;
+    outputNode._parentLabel = className;
   });
   return { retainedNodes, outputNodes };
 };
@@ -312,7 +312,7 @@ const classVisitor = {
       const { retainedNodes, outputNodes } = nodesForClass(
         { classNode, className, classBodyNodes });
       classNode.body.body = retainedNodes;
-      path.parentPath.parentPath.node.fragmentLabel = className;
+      path.parentPath.parentPath.node._segmentLabel = className;
       for (const outputNode of outputNodes) {
         path.parentPath.parentPath.insertAfter(outputNode);
       }
@@ -556,32 +556,32 @@ const prepareAstNodes = (code) => {
 };
 
 const changedNodesToCodeFragments = (previousNodes, nodes) => {
-  const toWrite = [];
-  const toRemove = [];
   const currentNodes = new Map();
-  const updatedParentFragments = new Set();
+  const updatedParentLabels = new Set();
+  const toWrite = [];
   for (const node of nodes) {
-    const fragment = generate(node, { comments: false }, '').code.trim();
+    const codeSegment = generate(node, { comments: false }, '').code.trim();
     const isAsync = node._topLevelAwait;
-    currentNodes.set(fragment, node);
-    if (previousNodes.has(fragment) &&
-      !(node.parentFragmentLabel &&
-        updatedParentFragments.has(node.parentFragmentLabel))) {
-      previousNodes.delete(fragment);
+    currentNodes.set(codeSegment, node);
+    if (previousNodes.has(codeSegment) &&
+      !(node._parentLabel &&
+        updatedParentLabels.has(node._parentLabel))) {
+      previousNodes.delete(codeSegment);
     } else {
-      if (node.fragmentLabel) {
-        updatedParentFragments.add(node.fragmentLabel);
+      if (node._segmentLabel) {
+        updatedParentLabels.add(node._segmentLabel);
       }
-      toWrite.push({ code: fragment, isAsync, addedVars: node._definedVars });
+      toWrite.push({ code: codeSegment, isAsync, addedVars: node._definedVars });
     }
   }
   // Removal code for previousNodes that haven't been found in new version.
+  const toRemove = [];
   for (const node of previousNodes.values()) {
     if (node._removeCode) {
       toRemove.push({ code: node._removeCode, isAsync: false, deletedVars: node._definedVars });
     }
   }
-  const fragments = [].concat(toRemove, toWrite);
+  const fragments = [...toRemove, ...toWrite];
   return { fragments, latestNodes: currentNodes };
 };
 
