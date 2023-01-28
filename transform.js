@@ -571,7 +571,7 @@ const changedNodesToCodeFragments = (previousNodes, nodes) => {
       if (node._segmentLabel) {
         updatedParentLabels.add(node._segmentLabel);
       }
-      toWrite.push({ code: codeSegment, isAsync, addedVars: node._definedVars });
+      toWrite.push({ code: codeSegment, isAsync, addedOrChangedVars: node._definedVars });
     }
   }
   // Removal code for previousNodes that haven't been found in new version.

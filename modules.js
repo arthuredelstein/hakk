@@ -116,12 +116,18 @@ class Module {
     return fragments;
   }
 
-  updateCurrentVars ({ deletedVars, addedOrChangedVars }) {
+  handleVarUpdates ({ deletedVars, addedOrChangedVars }) {
     if (deletedVars) {
       deletedVars.forEach(v => this.currentVars.delete(v));
+      for (const deletedVar of deletedVars) {
+        delete this.exports[deletedVar];
+      }
     }
     if (addedOrChangedVars) {
       addedOrChangedVars.forEach(v => this.currentVars.add(v));
+      for (const addedOrChangedVar of addedOrChangedVars) {
+        this.eval(`module.exports.${addedOrChangedVar} = ${addedOrChangedVar};`);
+      }
     }
   }
 
@@ -138,7 +144,7 @@ class Module {
     try {
       for (const { code, addedOrChangedVars, deletedVars } of latestFragments) {
         this.eval(code);
-        this.updateCurrentVars({ addedOrChangedVars, deletedVars });
+        this.handleVarUpdates({ addedOrChangedVars, deletedVars });
       }
     } catch (e) {
       console.error(e);
@@ -153,7 +159,7 @@ class Module {
         } else {
           this.eval(code);
         }
-        this.updateCurrentVars({ addedOrChangedVars, deletedVars });
+        this.handleVarUpdates({ addedOrChangedVars, deletedVars });
       }
     } catch (e) {
       console.error(e);
@@ -230,7 +236,7 @@ class ModuleManager {
   evalInModule (filePath, code, definedVars) {
     const module = this.moduleMap_.get(filePath);
     const result = module.eval(code);
-    module.updateCurrentVars({ addedOrChangedVars: definedVars });
+    module.handleVarUpdates({ addedOrChangedVars: definedVars });
     return result;
   }
 
