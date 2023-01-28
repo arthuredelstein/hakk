@@ -68,6 +68,7 @@ class Module {
     this.isAsync = isAsync;
     this.previousNodes = new Map();
     this.currentVars = new Set();
+    this.dependingModules_ = new Set();
     const __import = (path) => this.__import(path);
     __import.meta = { url: url.pathToFileURL(this.filePath).href };
     this.eval = scopedEvaluator(
@@ -91,6 +92,7 @@ class Module {
     if (isLocalPath(requirePath)) {
       const module = this.moduleManager_.getModuleSync(fullRequirePath);
       module.updateFileSync();
+      module.addDependingModule(this);
       return module.exports;
     } else {
       return originalRequire(fullRequirePath);
@@ -102,6 +104,7 @@ class Module {
     if (isLocalPath(importPath)) {
       const module = await this.moduleManager_.getModuleAsync(fullImportPath);
       await module.updateFileAsync();
+      module.addDependingModule(this);
       return module.exports;
     } else {
       return await import(fullImportPath);
@@ -114,6 +117,10 @@ class Module {
       this.previousNodes, prepareAST(contents).program.body);
     this.previousNodes = latestNodes;
     return fragments;
+  }
+
+  addDependingModule (module) {
+    this.dependingModules_.add(module);
   }
 
   handleVarUpdates ({ deletedVars, addedOrChangedVars }) {
