@@ -91,7 +91,6 @@ class Module {
     const fullRequirePath = originalResolveFilename(requirePath, this.dirPath);
     if (isLocalPath(requirePath)) {
       const module = this.moduleManager_.getModuleSync(fullRequirePath);
-      module.updateFileSync();
       module.addDependingModule(this);
       return module.exports;
     } else {
@@ -103,7 +102,6 @@ class Module {
     const fullImportPath = originalResolveFilename(importPath, this.dirPath);
     if (isLocalPath(importPath)) {
       const module = await this.moduleManager_.getModuleAsync(fullImportPath);
-      await module.updateFileAsync();
       module.addDependingModule(this);
       return module.exports;
     } else {
