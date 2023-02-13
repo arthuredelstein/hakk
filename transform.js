@@ -559,6 +559,7 @@ const changedNodesToCodeFragments = (previousNodes, nodes) => {
   const currentNodes = new Map();
   const updatedParentLabels = new Set();
   const toWrite = [];
+  const addedOrChangedVarsSeen = [];
   for (const node of nodes) {
     const codeSegment = generate(node, { comments: false }, '').code.trim();
     const isAsync = node._topLevelAwait;
@@ -572,13 +573,15 @@ const changedNodesToCodeFragments = (previousNodes, nodes) => {
         updatedParentLabels.add(node._segmentLabel);
       }
       toWrite.push({ code: codeSegment, isAsync, addedOrChangedVars: node._definedVars });
+      addedOrChangedVarsSeen.push(...(node._definedVars ?? []));
     }
   }
   // Removal code for previousNodes that haven't been found in new version.
   const toRemove = [];
   for (const node of previousNodes.values()) {
     if (node._removeCode) {
-      toRemove.push({ code: node._removeCode, isAsync: false, deletedVars: node._definedVars });
+      const deletedVars = node._definedVars.filter(v => !addedOrChangedVarsSeen.includes(v));
+      toRemove.push({ code: node._removeCode, isAsync: false, deletedVars });
     }
   }
   const fragments = [...toRemove, ...toWrite];
