@@ -110,52 +110,60 @@ const varVisitor = {
   }
 };
 
+const handleImportDotMeta = (path) => {
+  if (path.node.meta.name === 'import') {
+    path.replaceWith(template.ast('__import.meta'));
+  }
+};
+
+const handleImportDeclaration = (path) => {
+  const source = path.node.source.value;
+  const specifiers = [];
+  let namespaceId;
+  for (const specifier of path.node.specifiers) {
+    if (specifier.type === 'ImportDefaultSpecifier') {
+      specifiers.push(`default: ${specifier.local.name}`);
+    } else if (specifier.type === 'ImportSpecifier') {
+      if (specifier.imported.type === 'Identifier' &&
+        specifier.imported.name !== specifier.local.name) {
+        specifiers.push(
+          `${specifier.imported.name}: ${specifier.local.name}`);
+      } else if (specifier.imported.type === 'StringLiteral' &&
+        specifier.imported.value !== specifier.local.name) {
+        specifiers.push(
+          `'${specifier.imported.value}': ${specifier.local.name}`);
+      } else {
+        specifiers.push(specifier.local.name);
+      }
+    } else if (specifier.type === 'ImportNamespaceSpecifier') {
+      namespaceId = specifier.local.name;
+    }
+  }
+  const sourceString = `await __import('${source}')`;
+  let line = '';
+  if (namespaceId !== undefined) {
+    line += `const ${namespaceId} = ${sourceString};`;
+  }
+  if (specifiers.length > 0) {
+    line += `const {${specifiers.join(', ')}} = ${namespaceId ?? sourceString};`;
+  }
+  if (namespaceId === undefined && specifiers.length === 0) {
+    line = sourceString;
+  }
+  const newAst = template.ast(line);
+  if (namespaceId && specifiers.length > 0) {
+    path.replaceWithMultiple(newAst);
+  } else {
+    path.replaceWith(newAst);
+  }
+};
+
 const importVisitor = {
   MetaProperty (path) {
-    if (path.node.meta.name === 'import') {
-      path.replaceWith(template.ast('__import.meta'));
-    }
+    handleImportDotMeta(path);
   },
   ImportDeclaration (path) {
-    const source = path.node.source.value;
-    const specifiers = [];
-    let namespaceId;
-    for (const specifier of path.node.specifiers) {
-      if (specifier.type === 'ImportDefaultSpecifier') {
-        specifiers.push(`default: ${specifier.local.name}`);
-      } else if (specifier.type === 'ImportSpecifier') {
-        if (specifier.imported.type === 'Identifier' &&
-          specifier.imported.name !== specifier.local.name) {
-          specifiers.push(
-            `${specifier.imported.name}: ${specifier.local.name}`);
-        } else if (specifier.imported.type === 'StringLiteral' &&
-          specifier.imported.value !== specifier.local.name) {
-          specifiers.push(
-            `'${specifier.imported.value}': ${specifier.local.name}`);
-        } else {
-          specifiers.push(specifier.local.name);
-        }
-      } else if (specifier.type === 'ImportNamespaceSpecifier') {
-        namespaceId = specifier.local.name;
-      }
-    }
-    const sourceString = `await __import('${source}')`;
-    let line = '';
-    if (namespaceId !== undefined) {
-      line += `const ${namespaceId} = ${sourceString};`;
-    }
-    if (specifiers.length > 0) {
-      line += `const {${specifiers.join(', ')}} = ${namespaceId ?? sourceString};`;
-    }
-    if (namespaceId === undefined && specifiers.length === 0) {
-      line = sourceString;
-    }
-    const newAst = template.ast(line);
-    if (namespaceId && specifiers.length > 0) {
-      path.replaceWithMultiple(newAst);
-    } else {
-      path.replaceWith(newAst);
-    }
+    handleImportDeclaration(path);
   }
 };
 
@@ -295,14 +303,69 @@ const nodesForClass = ({ className, classBodyNodes }) => {
   return { retainedNodes, outputNodes };
 };
 
+const handleClassExpression = (path) => {
+  // Only do top-level class variable declarations.
+  if (!isTopLevelDeclaredObject(path)) {
+    return;
+  }
+  const classNode = path.node;
+  let className, classBodyNodes;
+  if (types.isVariableDeclarator(path.parentPath)) {
+    className = path.parentPath.node.id.name;
+  }
+  if (types.isClassBody(classNode.body)) {
+    classBodyNodes = classNode.body.body;
+  }
+  const { retainedNodes, outputNodes } = nodesForClass(
+    { classNode, className, classBodyNodes });
+  classNode.body.body = retainedNodes;
+  path.parentPath.parentPath.node._segmentLabel = className;
+  for (const outputNode of outputNodes) {
+    path.parentPath.parentPath.insertAfter(outputNode);
+  }
+};
+
+const handleClassDeclaration = (path) => {
+  // Only modify top-level class declarations.
+  if (!types.isProgram(path.parentPath)) {
+    return;
+  }
+  // Convert a class declaration into a class expression bound to a var.
+  const classNode = path.node;
+  const expression = template.ast('var AClass = class AClass { }');
+  const declaration = expression.declarations[0];
+  declaration.id.name = classNode.id.name;
+  declaration.init.id.name = classNode.id.name;
+  declaration.init.body = classNode.body;
+  declaration.init.superClass = classNode.superClass;
+  path.replaceWith(expression);
+};
+
+const handleFunctionDeclaration = (path) => {
+  if (!types.isProgram(path.parentPath)) {
+    return;
+  }
+  const functionNode = path.node;
+  const expression = template.ast('var aFunction = function aFunction () {}');
+  const declaration = expression.declarations[0];
+  declaration.id.name = functionNode.id.name;
+  declaration.init.id.name = functionNode.id.name;
+  declaration.init.body = functionNode.body;
+  path.replaceWith(expression);
+};
+
+const handlePrivateName = (path) => {
+  path.replaceWith(path.node.id);
+  path.node.name = '_PRIVATE_' + path.node.name;
+};
+
 // Make class declarations mutable by transforming to class
 // expressions assigned to a var, with member declarations
 // hoisted out of the class body.
 const classVisitor = {
   PrivateName: {
     enter (path) {
-      path.replaceWith(path.node.id);
-      path.node.name = '_PRIVATE_' + path.node.name;
+      handlePrivateName(path);
     }
   },
   ClassPrivateMethod (path) {
@@ -313,56 +376,17 @@ const classVisitor = {
   },
   ClassExpression: {
     exit (path) {
-      // Only do top-level class variable declarations.
-      if (!isTopLevelDeclaredObject(path)) {
-        return;
-      }
-      const classNode = path.node;
-      let className, classBodyNodes;
-      if (types.isVariableDeclarator(path.parentPath)) {
-        className = path.parentPath.node.id.name;
-      }
-      if (types.isClassBody(classNode.body)) {
-        classBodyNodes = classNode.body.body;
-      }
-      const { retainedNodes, outputNodes } = nodesForClass(
-        { classNode, className, classBodyNodes });
-      classNode.body.body = retainedNodes;
-      path.parentPath.parentPath.node._segmentLabel = className;
-      for (const outputNode of outputNodes) {
-        path.parentPath.parentPath.insertAfter(outputNode);
-      }
+      handleClassExpression(path);
     }
   },
   ClassDeclaration: {
     enter (path) {
-      // Only modify top-level class declarations.
-      if (!types.isProgram(path.parentPath)) {
-        return;
-      }
-      // Convert a class declaration into a class expression bound to a var.
-      const classNode = path.node;
-      const expression = template.ast('var AClass = class AClass { }');
-      const declaration = expression.declarations[0];
-      declaration.id.name = classNode.id.name;
-      declaration.init.id.name = classNode.id.name;
-      declaration.init.body = classNode.body;
-      declaration.init.superClass = classNode.superClass;
-      path.replaceWith(expression);
+      handleClassDeclaration(path);
     }
   },
   FunctionDeclaration: {
     enter (path) {
-      if (!types.isProgram(path.parentPath)) {
-        return;
-      }
-      const functionNode = path.node;
-      const expression = template.ast('var aFunction = function aFunction () {}');
-      const declaration = expression.declarations[0];
-      declaration.id.name = functionNode.id.name;
-      declaration.init.id.name = functionNode.id.name;
-      declaration.init.body = functionNode.body;
-      path.replaceWith(expression);
+      handleFunctionDeclaration(path);
     }
   }
 };
@@ -383,46 +407,50 @@ const superVisitor = {
 
 const staticBlockVisitor = staticBlockPlugin({ types, template, assertVersion: () => undefined }).visitor;
 
+const handleObjectExpression = (path) => {
+  if (!isTopLevelDeclaredObject(path)) {
+    return;
+  }
+  const originalProperties = path.node.properties;
+  path.node.properties = [];
+  const name = path.parentPath.node.id.name;
+  const outputASTs = [];
+  for (const property of originalProperties) {
+    const key = property.key;
+    let ast;
+    if (types.isObjectProperty(property)) {
+      if (types.isIdentifier(key)) {
+        ast = template.ast(`${name}.${key.name} = undefined;`);
+      }
+      if (types.isStringLiteral(key)) {
+        ast = template.ast(`${name}['${key.value}'] = undefined;`);
+      }
+      ast.expression.right = property.value;
+    } else if (types.isObjectMethod(property)) {
+      if (types.isIdentifier(key)) {
+        ast = template.ast(`${name}.${key.name} = function () { };`);
+        const expressionRight = ast.expression.right;
+        expressionRight.params = property.params;
+        expressionRight.async = property.async;
+        expressionRight.generator = property.generator;
+        expressionRight.body = property.body;
+      } else {
+        throw new Error(`Unexpected key type '${key.type}'.`);
+      }
+    } else {
+      throw new Error(`Unexpected object member '${property.type}'.`);
+    }
+    ast._removeCode = `delete ${name}['${key.name}']`;
+    outputASTs.push(ast);
+  }
+  for (const outputAST of outputASTs.reverse()) {
+    path.parentPath.parentPath.insertAfter(outputAST);
+  }
+};
+
 const objectVisitor = {
   ObjectExpression (path) {
-    if (!isTopLevelDeclaredObject(path)) {
-      return;
-    }
-    const originalProperties = path.node.properties;
-    path.node.properties = [];
-    const name = path.parentPath.node.id.name;
-    const outputASTs = [];
-    for (const property of originalProperties) {
-      const key = property.key;
-      let ast;
-      if (types.isObjectProperty(property)) {
-        if (types.isIdentifier(key)) {
-          ast = template.ast(`${name}.${key.name} = undefined;`);
-        }
-        if (types.isStringLiteral(key)) {
-          ast = template.ast(`${name}['${key.value}'] = undefined;`);
-        }
-        ast.expression.right = property.value;
-      } else if (types.isObjectMethod(property)) {
-        if (types.isIdentifier(key)) {
-          ast = template.ast(`${name}.${key.name} = function () { };`);
-          const expressionRight = ast.expression.right;
-          expressionRight.params = property.params;
-          expressionRight.async = property.async;
-          expressionRight.generator = property.generator;
-          expressionRight.body = property.body;
-        } else {
-          throw new Error(`Unexpected key type '${key.type}'.`);
-        }
-      } else {
-        throw new Error(`Unexpected object member '${property.type}'.`);
-      }
-      ast._removeCode = `delete ${name}['${key.name}']`;
-      outputASTs.push(ast);
-    }
-    for (const outputAST of outputASTs.reverse()) {
-      path.parentPath.parentPath.insertAfter(outputAST);
-    }
+    handleObjectExpression(path);
   }
 };
 
@@ -434,8 +462,8 @@ const astCodeToAddToModuleExports = (identifier, localName) =>
 const wildcardExport = (namespaceIdentifier) => {
   const namespaceAccessorString = namespaceIdentifier
     ? (types.isStringLiteral(namespaceIdentifier)
-        ? `['${namespaceIdentifier.value}']`
-        : `.${namespaceIdentifier.name}`)
+      ? `['${namespaceIdentifier.value}']`
+      : `.${namespaceIdentifier.name}`)
     : '';
   return template.ast(
     `const propertyNames = Object.getOwnPropertyNames(importedObject);
