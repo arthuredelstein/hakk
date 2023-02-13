@@ -125,13 +125,17 @@ class Module {
     if (deletedVars) {
       deletedVars.forEach(v => this.currentVars.delete(v));
       for (const deletedVar of deletedVars) {
-        delete this.exports[deletedVar];
+        if (Object.hasOwn(this.exports, deletedVar)) {
+          delete this.exports[deletedVar];
+        }
       }
     }
     if (addedOrChangedVars) {
       addedOrChangedVars.forEach(v => this.currentVars.add(v));
       for (const addedOrChangedVar of addedOrChangedVars) {
-        this.eval(`module.exports.${addedOrChangedVar} = ${addedOrChangedVar};`);
+        if (Object.hasOwn(this.exports, addedOrChangedVar)) {
+          this.eval(`module.exports.${addedOrChangedVar} = ${addedOrChangedVar};`);
+        }
       }
     }
   }
