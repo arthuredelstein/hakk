@@ -172,7 +172,7 @@ const isTopLevelDeclaredObject = (path) =>
   types.isVariableDeclaration(path.parentPath.parentPath) &&
   types.isProgram(path.parentPath.parentPath.parentPath);
 
-const handleCallExpression = (path) => {
+const handleCallExpressionEnter = (path) => {
   if (path.node.callee.type !== 'MemberExpression' ||
     path.node.callee.object.type !== 'Super') {
     return;
@@ -191,6 +191,22 @@ const handleCallExpression = (path) => {
   const expressionAST = ast.expression;
   expressionAST.arguments = expressionAST.arguments.concat(path.node.arguments);
   path.replaceWith(expressionAST);
+};
+
+const handleCallExpressionExit = (path) => {
+  if (getEnclosingFunction(path)) {
+    return;
+  }
+  const topPath = path.find((path) => path.parentPath.isProgram());
+  if (path.node.callee) {
+    const firstArgument = path.node.arguments[0].value;
+    if (path.node.callee.name === '__import') {
+      topPath.node._topLevelImport = firstArgument;
+    }
+    if (path.node.callee.name === 'require') {
+      topPath.node._topLevelRequire = firstArgument;
+    }
+  }
 };
 
 const handleMemberExpression = (path) => {
@@ -352,8 +368,13 @@ const classVisitor = {
 };
 
 const superVisitor = {
-  CallExpression (path) {
-    handleCallExpression(path);
+  CallExpression: {
+    enter (path) {
+      handleCallExpressionEnter(path);
+    },
+    exit (path) {
+      handleCallExpressionExit(path);
+    }
   },
   MemberExpression (path) {
     handleMemberExpression(path);
