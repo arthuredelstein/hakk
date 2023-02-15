@@ -121,6 +121,40 @@ class Module {
     this.dependingModules_.add(module);
   }
 
+  updateRequire (filePath) {
+    for (const [code, node] of this.previousNodes.entries()) {
+      if (node._topLevelRequire) {
+        const fullRequirePath = originalResolveFilename(node._topLevelRequire, this.dirPath);
+        if (fullRequirePath === filePath) {
+          this.eval(code);
+        }
+      }
+    }
+  }
+
+  async updateImport (filePath) {
+    for (const [code, node] of this.previousNodes.entries()) {
+      if (node._topLevelImport) {
+        const fullImportPath = originalResolveFilename(node._topLevelImport, this.dirPath);
+        if (fullImportPath === filePath) {
+          await this.eval(code);
+        }
+      }
+    }
+  }
+
+  updateDependingModuleRequires () {
+    for (const dependingModule of this.dependingModules_) {
+      dependingModule.updateRequire(this.filePath);
+    }
+  }
+
+  async updateDependingModuleImports () {
+    for (const dependingModule of this.dependingModules_) {
+      dependingModule.updateImport(this.filePath);
+    }
+  }
+
   handleVarUpdates ({ deletedVars, addedOrChangedVars }) {
     if (deletedVars) {
       deletedVars.forEach(v => this.currentVars.delete(v));
@@ -158,6 +192,7 @@ class Module {
     } catch (e) {
       console.error(e);
     }
+    this.updateDependingModuleRequires();
   }
 
   async updateFileAsync () {
@@ -173,6 +208,7 @@ class Module {
     } catch (e) {
       console.error(e);
     }
+    await this.updateDependingModuleImports();
   }
 }
 
