@@ -100,6 +100,10 @@ const handleVariableDeclarationExit = (path) => {
 };
 
 const handleCallExpressionWithRequireOrImport = (path) => {
+  if (path.node.callee && types.isImport(path.node.callee)) {
+    path.node.callee.type = 'Identifier';
+    path.node.callee.name = '__import';
+  }
   if (getEnclosingFunction(path)) {
     return;
   }
