@@ -91,6 +91,11 @@ testTransform(
    var y = 2;
    var z = 3;`);
 
+// ## `import()` calls
+
+testTransform("var {test} = await import('./test.js');",
+  "var test; ({ test } = await __import('./test.js'));");
+
 // ## `import` syntax
 // Testing all cases in
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#syntax
