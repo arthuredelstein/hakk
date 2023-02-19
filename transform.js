@@ -356,6 +356,8 @@ const handleFunctionDeclaration = (path) => {
   declaration.id.name = functionNode.id.name;
   declaration.init.id.name = functionNode.id.name;
   declaration.init.body = functionNode.body;
+  declaration.init.async = functionNode.async;
+  declaration.init.generator = functionNode.generator;
   path.replaceWith(expression);
 };
 
