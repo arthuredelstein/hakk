@@ -116,16 +116,16 @@ testTransform('import { default as alias } from "module-name";',
   "var alias; ({ default: alias } = await __import('module-name'));");
 
 testTransform('import { export1, export2 } from "module-name";',
-  "var export1, export2; ({ export1, export2 } = await __import('module-name'));");
+  "var export1; var export2; ({ export1, export2 } = await __import('module-name'));");
 
 testTransform('import { export1, export2 as alias2 } from "module-name";',
-  "var export1, alias2; ({ export1, export2: alias2 } = await __import('module-name'));");
+  "var export1; var alias2; ({ export1, export2: alias2 } = await __import('module-name'));");
 
 testTransform('import { "string name" as alias } from "module-name";',
   "var alias; ({ 'string name': alias } = await __import('module-name'));");
 
 testTransform('import defaultExport, { export1 } from "module-name";',
-  "var defaultExport, export1; ({ default: defaultExport, export1 } = await __import('module-name'));");
+  "var defaultExport; var export1; ({ default: defaultExport, export1 } = await __import('module-name'));");
 
 testTransform('import defaultExport, * as name from "module-name";',
   `var name; name = await __import('module-name');
@@ -153,7 +153,7 @@ testTransform('export const name1 = 1, name2 = 2;',
    module.exports.name2 = name2;`);
 
 testTransform('export function functionName() { /* … */ }',
-  `function functionName() {/* … */}
+  `var functionName = function functionName() {/* … */};
   module.exports.functionName = functionName;`);
 
 testTransform('export class ClassName { /* … */ }',
@@ -161,7 +161,7 @@ testTransform('export class ClassName { /* … */ }',
   module.exports.ClassName = ClassName;`);
 
 testTransform('export function* generatorFunctionName() { /* … */ }',
-  `function* generatorFunctionName() {/* … */}
+  `var generatorFunctionName = function* generatorFunctionName() {/* … */};
   module.exports.generatorFunctionName = generatorFunctionName;`);
 
 testTransform('export const { name1, name2: bar } = o;',
