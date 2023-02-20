@@ -9,8 +9,10 @@ module.exports = {
         if (receivedValue === '.end') {
           break;
         }
+        const annotatedValue = receivedValue + `
+          //# sourceURL=${filePath}`;
         try {
-          valueToSend = { result: eval(receivedValue) }; // eslint-disable-line no-eval
+          valueToSend = { result: eval(annotatedValue) }; // eslint-disable-line no-eval
         } catch (e) {
           valueToSend = { error: e };
         }
