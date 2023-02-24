@@ -637,7 +637,7 @@ const changedNodesToCodeFragments = (previousNodes, nodes) => {
   const toRemove = [];
   for (const node of previousNodes.values()) {
     if (node._removeCode) {
-      const deletedVars = node._definedVars.filter(v => !addedOrChangedVarsSeen.includes(v));
+      const deletedVars = node._definedVars ? node._definedVars.filter(v => !addedOrChangedVarsSeen.includes(v)) : undefined;
       toRemove.push({ code: node._removeCode, isAsync: false, deletedVars });
     }
   }
