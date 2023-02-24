@@ -100,7 +100,6 @@ class Module {
 
   async __import (importPath) {
     const fullImportPath = originalResolveFilename(importPath, this.dirPath);
-    console.log({fullImportPath, importPath, dirPath: this.dirPath});
     if (isLocalPath(importPath)) {
       const module = await this.moduleManager_.getModuleAsync(fullImportPath);
       module.addDependingModule(this);
