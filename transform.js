@@ -612,24 +612,46 @@ const prepareAstNodes = (code) => {
   }
 };
 
-const changedNodesToCodeFragments = (previousNodes, nodes) => {
+const sourceMapToDataURL = (map) => {
+  const mapString = JSON.stringify(map);
+  const mapString64 = Buffer.from(mapString).toString('base64');
+  return 'data:application/json;base64,' + mapString64;
+};
+
+const offsetFromMap = (rawMappings) => {
+  if (rawMappings.generated.line !== 1) {
+    throw new Error('missing line mapping');
+  }
+  return rawMappings[0].original.line;
+};
+
+const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
   const currentNodes = new Map();
   const updatedParentLabels = new Set();
   const toWrite = [];
   const addedOrChangedVarsSeen = [];
+  const offsetsMap = {};
   for (const node of nodes) {
-    const codeSegment = generate(node, { comments: false }, '').code.trim();
+    const { code, map, rawMappings } = generate(node, {
+      comments: false, sourceMaps: true, sourceFileName: filePath
+    }, '');
+    offsetsMap[code] = offsetFromMap(rawMappings);
     const isAsync = node._topLevelAwait;
-    currentNodes.set(codeSegment, node);
-    if (previousNodes.has(codeSegment) &&
+    currentNodes.set(code, node);
+    if (previousNodes.has(code) &&
       !(node._parentLabel &&
         updatedParentLabels.has(node._parentLabel))) {
-      previousNodes.delete(codeSegment);
+      previousNodes.delete(code);
     } else {
       if (node._segmentLabel) {
         updatedParentLabels.add(node._segmentLabel);
       }
-      toWrite.push({ code: codeSegment, isAsync, addedOrChangedVars: node._definedVars });
+      toWrite.push({
+        code,
+        isAsync,
+        addedOrChangedVars: node._definedVars,
+        sourceMappingURL: sourceMapToDataURL(map)
+      });
       addedOrChangedVarsSeen.push(...(node._definedVars ?? []));
     }
   }
@@ -642,7 +664,7 @@ const changedNodesToCodeFragments = (previousNodes, nodes) => {
     }
   }
   const fragments = [...toRemove, ...toWrite];
-  return { fragments, latestNodes: currentNodes };
+  return { fragments, latestNodes: currentNodes, offsetsMap };
 };
 
 module.exports = { generate, parse, prepareAstNodes, prepareCode, prepareAST, changedNodesToCodeFragments };
