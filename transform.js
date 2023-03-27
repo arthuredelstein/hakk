@@ -614,10 +614,10 @@ const prepareAstNodes = (code) => {
   }
 };
 
-const sourceMapToDataURL = (map) => {
+const sourceMapToDataURLComment = (map) => {
   const mapString = JSON.stringify(map);
   const mapString64 = Buffer.from(mapString).toString('base64');
-  return 'data:application/json;base64,' + mapString64;
+  return '//# sourceMappingURL=data:application/json;base64,' + mapString64;
 };
 
 const offsetFromMap = (rawMappings) => {
@@ -637,6 +637,8 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
     const { code, map, rawMappings } = generate(node, {
       comments: false, sourceMaps: true, sourceFileName: filePath
     }, '');
+    const codeHash = sha256(code);
+    map.sources[0] += "|" + codeHash;
     offsetsMap[sha256(code)] = offsetFromMap(rawMappings);
     const isAsync = node._topLevelAwait;
     currentNodes.set(code, node);
@@ -652,7 +654,7 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
         code,
         isAsync,
         addedOrChangedVars: node._definedVars,
-        sourceMappingURL: sourceMapToDataURL(map)
+        sourceMapComment: sourceMapToDataURLComment(map)
       });
       addedOrChangedVarsSeen.push(...(node._definedVars ?? []));
     }
