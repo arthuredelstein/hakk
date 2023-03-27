@@ -112,7 +112,7 @@ class Module {
   getLatestFragments () {
     const contents = fs.readFileSync(this.filePath, { encoding: 'utf8' }).toString();
     const { latestNodes, fragments } = changedNodesToCodeFragments(
-      this.previousNodes, prepareAST(contents).program.body);
+      this.previousNodes, prepareAST(contents).program.body, this.filePath);
     this.previousNodes = latestNodes;
     return fragments;
   }

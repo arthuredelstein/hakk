@@ -619,7 +619,7 @@ const sourceMapToDataURL = (map) => {
 };
 
 const offsetFromMap = (rawMappings) => {
-  if (rawMappings.generated.line !== 1) {
+  if (rawMappings[0].generated.line !== 1) {
     throw new Error('missing line mapping');
   }
   return rawMappings[0].original.line;
