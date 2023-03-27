@@ -1,9 +1,9 @@
 const repl = require('node:repl');
-const { createHash } = require('node:crypto');
 const homedir = require('os').homedir();
 const fs = require('fs');
 const path = require('node:path');
 const { prepareAstNodes, generate } = require('./transform.js');
+const { sha256 } = require('./utils.js');
 
 // TODO: Get source mapping with something like:
 // generate(ast, {sourceMaps: true, sourceFileName: "test"})
@@ -12,10 +12,6 @@ const { prepareAstNodes, generate } = require('./transform.js');
 // Q: Can we use https://www.npmjs.com/package/babel-plugin-source-map-support
 // and https://www.npmjs.com/package/source-map-support ?
 // How do these work? See also https://v8.dev/docs/stack-trace-api
-
-// Take a string and return the sha256 digest in a hex string (64 characters).
-const sha256 = (text) =>
-  createHash('sha256').update(text, 'utf8').digest().toString('hex');
 
 // Returns true if the inputted code is incomplete.
 const unexpectedNewLine = (code, e) =>

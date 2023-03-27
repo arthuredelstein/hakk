@@ -4,6 +4,8 @@ const template = require('@babel/template').default;
 const traverse = require('@babel/traverse').default;
 const types = require('@babel/types');
 const staticBlockPlugin = require('@babel/plugin-proposal-class-static-block').default;
+const { sha256 } = require('./utils.js');
+
 // TODO: const hoistVariables = require('@babel/helper-hoist-variables').default;
 
 // Parse JS code into a babel ast.
@@ -635,7 +637,7 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
     const { code, map, rawMappings } = generate(node, {
       comments: false, sourceMaps: true, sourceFileName: filePath
     }, '');
-    offsetsMap[code] = offsetFromMap(rawMappings);
+    offsetsMap[sha256(code)] = offsetFromMap(rawMappings);
     const isAsync = node._topLevelAwait;
     currentNodes.set(code, node);
     if (previousNodes.has(code) &&
