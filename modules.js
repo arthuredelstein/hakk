@@ -126,7 +126,7 @@ class Module {
       if (node._topLevelRequire) {
         const fullRequirePath = originalResolveFilename(node._topLevelRequire, this.dirPath);
         if (fullRequirePath === filePath) {
-          this.eval(code);
+          this.eval({code, sourceURL: filePath});
         }
       }
     }
@@ -137,7 +137,7 @@ class Module {
       if (node._topLevelImport) {
         const fullImportPath = originalResolveFilename(node._topLevelImport, this.dirPath);
         if (fullImportPath === filePath) {
-          await this.eval(code);
+          await this.eval({code, sourceURL: filePath});
         }
       }
     }
@@ -168,7 +168,7 @@ class Module {
       addedOrChangedVars.forEach(v => this.currentVars.add(v));
       for (const addedOrChangedVar of addedOrChangedVars) {
         if (Object.hasOwn(this.exports, addedOrChangedVar)) {
-          this.eval(`module.exports.${addedOrChangedVar} = ${addedOrChangedVar};`);
+          this.eval({code: `module.exports.${addedOrChangedVar} = ${addedOrChangedVar};`});
         }
       }
     }
@@ -185,8 +185,8 @@ class Module {
     }
     // Now evaluate each line of code.
     try {
-      for (const { code, addedOrChangedVars, deletedVars } of latestFragments) {
-        this.eval(code);
+      for (const { code, addedOrChangedVars, deletedVars, tracker } of latestFragments) {
+        this.eval({code, sourceURL: tracker });
         this.handleVarUpdates({ addedOrChangedVars, deletedVars });
       }
     } catch (e) {
@@ -197,11 +197,11 @@ class Module {
 
   async updateFileAsync () {
     try {
-      for (const { code, isAsync, addedOrChangedVars, deletedVars } of this.getLatestFragments()) {
+      for (const { code, isAsync, addedOrChangedVars, deletedVars, tracker } of this.getLatestFragments()) {
         if (isAsync) {
-          await this.eval(`(async () => { ${code} })();`);
+          await this.eval({code:`(async () => { ${code} })();`, sourceURL: tracker});
         } else {
-          this.eval(code);
+          this.eval({code, sourceURL: tracker});
         }
         this.handleVarUpdates({ addedOrChangedVars, deletedVars });
       }
@@ -280,7 +280,7 @@ class ModuleManager {
 
   evalInModule (filePath, code, definedVars) {
     const module = this.moduleMap_.get(filePath);
-    const result = module.eval(code);
+    const result = module.eval({code});
     module.handleVarUpdates({ addedOrChangedVars: definedVars });
     return result;
   }

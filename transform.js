@@ -621,9 +621,9 @@ const sourceMapToDataURLComment = (map) => {
 };
 
 const offsetFromMap = (rawMappings) => {
-  if (rawMappings[0].generated.line !== 1) {
+  /*if (rawMappings[0].generated.line !== 1) {
     throw new Error('missing line mapping');
-  }
+  }*/
   return rawMappings[0].original.line;
 };
 
@@ -637,10 +637,12 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
     const { code, map, rawMappings } = generate(node, {
       comments: false, sourceMaps: true, sourceFileName: filePath
     }, '');
-    const codeHash = sha256(code);
-    map.sources[0] += "|" + codeHash;
-    offsetsMap[sha256(code)] = offsetFromMap(rawMappings);
-    const isAsync = node._topLevelAwait;
+    const codeHash = sha256(code).substring(0,16);
+    const offset = offsetFromMap(rawMappings);
+    map.sources[0] += "|" + codeHash + "|" + offset;
+    const tracker = codeHash + "|" + offset;
+    offsetsMap[codeHash] = offset;
+    const sourceMapComment = sourceMapToDataURLComment(map);
     currentNodes.set(code, node);
     if (previousNodes.has(code) &&
       !(node._parentLabel &&
@@ -651,10 +653,11 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
         updatedParentLabels.add(node._segmentLabel);
       }
       toWrite.push({
-        code,
-        isAsync,
+        code: code + "\n" + sourceMapComment,
+        isAsync: node._topLevelAwait,
         addedOrChangedVars: node._definedVars,
-        sourceMapComment: sourceMapToDataURLComment(map)
+        tracker,
+        sourceMapComment
       });
       addedOrChangedVarsSeen.push(...(node._definedVars ?? []));
     }
