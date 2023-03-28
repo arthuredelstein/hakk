@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-const test2 = require('./test2.js');
+//const test2 = require('./test2.js');
 
 let x = 0;
 
@@ -144,6 +144,6 @@ const join = (a, b) => {
   return toTitleCase(a) + " " + toTitleCase(b);
 };
 
-test2.bar();
+//test2.bar();
 
 exports.join = join;
