@@ -6,7 +6,7 @@ let x = 0;
 
 let y = 10;
 
-//console.log("Hello from", { __dirname, __filename });
+console.log("Hello from", { __dirname, __filename });
 
 const bump = () => {
   // console.log"hello there, bump!");
@@ -89,6 +89,8 @@ class TestClass {
   }
 };
 
+const dummyVar = 10;
+
 class ChildClass extends MyClass {
   check () {
     return "check " + this.q_;
@@ -98,6 +100,9 @@ class ChildClass extends MyClass {
   }
   toString () {
     return `child`;//+ super.toString();
+  }
+  throwError () {
+    throw new Error("error in ChildClass");
   }
 }
 

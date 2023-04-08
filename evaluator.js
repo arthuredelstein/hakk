@@ -9,8 +9,9 @@ module.exports = {
         if (code === '.end') {
           break;
         }
-        const annotatedCode = code + `
-          //# sourceURL=${sourceURL}`;
+        const annotatedCode = code + (sourceURL ? `
+          //# sourceURL=${sourceURL}` : '');
+        //console.log("\n\nEvaluate:\n", annotatedCode);
         try {
           valueToSend = { result: eval(annotatedCode) }; // eslint-disable-line no-eval
         } catch (e) {

@@ -4,6 +4,7 @@ const { scopedEvaluator } = require('./evaluator.js');
 const { changedNodesToCodeFragments, prepareAST } = require('./transform.js');
 const fs = require('node:fs');
 const url = require('url');
+const errors = require("./errors.js")
 
 class UnexpectedTopLevelAwaitFoundError extends Error { }
 
@@ -111,9 +112,10 @@ class Module {
 
   getLatestFragments () {
     const contents = fs.readFileSync(this.filePath, { encoding: 'utf8' }).toString();
-    const { latestNodes, fragments } = changedNodesToCodeFragments(
+    const { latestNodes, fragments, offsetsMap } = changedNodesToCodeFragments(
       this.previousNodes, prepareAST(contents).program.body, this.filePath);
     this.previousNodes = latestNodes;
+    errors.updateOffsets(offsetsMap);
     return fragments;
   }
 
@@ -217,6 +219,7 @@ class ModuleManager {
     this.moduleCreationListeners_ = new Set();
     this.moduleUpdateListeners_ = new Set();
     this.moduleMap_ = new Map();
+    errors.setupStackTraces();
   }
 
   static async create (rootModulePath) {

@@ -13,6 +13,12 @@ const parse = (code) => parser.parse(code, { sourceType: 'module' });
 
 // ## AST transformation visitors
 
+const copyLocation = (fromNode, toNode) => {
+  toNode.start = fromNode.start;
+  toNode.end = fromNode.end;
+  toNode.loc = fromNode.loc;
+}
+
 const getEnclosingFunction = path => path.findParent((path) => path.isFunction());
 
 const getEnclosingVariableDeclarator = path => path.findParent((path) => path.isVariableDeclarator());
@@ -83,6 +89,9 @@ const handleVariableDeclarationEnter = (path) => {
   if (path.node.kind !== 'var' || path.node.declarations.length > 1) {
     const outputNodes = path.node.declarations.map(
       d => types.variableDeclaration('var', [d]));
+    for (let i = 0; i < path.node.declarations.length; ++i) {
+      copyLocation(path.node.declarations[i], outputNodes[i]);
+    }
     path.replaceWithMultiple(outputNodes);
   }
 };
@@ -139,7 +148,10 @@ const varVisitor = {
 
 const handleImportDotMeta = (path) => {
   if (path.node.meta.name === 'import') {
+    const originalPathNode = path.node;
     path.replaceWith(template.ast('__import.meta'));
+    copyLocation(originalPathNode.meta, path.node.object);
+    copyLocation(originalPathNode.property, path.node.property);
   }
 };
 
@@ -349,6 +361,9 @@ const handleClassDeclaration = (path) => {
   declaration.init.id.name = classNode.id.name;
   declaration.init.body = classNode.body;
   declaration.init.superClass = classNode.superClass;
+  copyLocation(classNode, expression);
+  copyLocation(classNode, declaration.init);
+  copyLocation(classNode.id, declaration.id);
   path.replaceWith(expression);
 };
 
@@ -364,6 +379,10 @@ const handleFunctionDeclaration = (path) => {
   declaration.init.body = functionNode.body;
   declaration.init.async = functionNode.async;
   declaration.init.generator = functionNode.generator;
+  copyLocation(functionNode, expression);
+  copyLocation(functionNode, declaration);
+  copyLocation(functionNode.id, declaration.id);
+  copyLocation(functionNode, declaration.init);
   path.replaceWith(expression);
 };
 
@@ -436,6 +455,8 @@ const handleObjectExpression = (path) => {
         ast = template.ast(`${name}['${key.value}'] = undefined;`);
       }
       ast.expression.right = property.value;
+      copyLocation(property, ast.expression);
+      copyLocation(property.key, ast.expression.left);
     } else if (types.isObjectMethod(property)) {
       if (types.isIdentifier(key)) {
         ast = template.ast(`${name}.${key.name} = function () { };`);
@@ -444,6 +465,8 @@ const handleObjectExpression = (path) => {
         expressionRight.async = property.async;
         expressionRight.generator = property.generator;
         expressionRight.body = property.body;
+        copyLocation(property.body, ast.expression);
+        copyLocation(property.key, ast.expression.left);
       } else {
         throw new Error(`Unexpected key type '${key.type}'.`);
       }
@@ -553,6 +576,7 @@ const handleExportNameDeclaration = (path) => {
 const handleExportDefaultDeclaration = (path) => {
   const outputAST = template.ast('module.exports.default = undefined');
   outputAST.expression.right = path.node.declaration;
+  copyLocation(path.node, outputAST.expression);
   path.replaceWith(outputAST);
 };
 
@@ -614,19 +638,6 @@ const prepareAstNodes = (code) => {
   }
 };
 
-const sourceMapToDataURLComment = (map) => {
-  const mapString = JSON.stringify(map);
-  const mapString64 = Buffer.from(mapString).toString('base64');
-  return '//# sourceMappingURL=data:application/json;base64,' + mapString64;
-};
-
-const offsetFromMap = (rawMappings) => {
-  /*if (rawMappings[0].generated.line !== 1) {
-    throw new Error('missing line mapping');
-  }*/
-  return rawMappings[0].original.line;
-};
-
 const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
   const currentNodes = new Map();
   const updatedParentLabels = new Set();
@@ -634,15 +645,14 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
   const addedOrChangedVarsSeen = [];
   const offsetsMap = {};
   for (const node of nodes) {
-    const { code, map, rawMappings } = generate(node, {
-      comments: false, sourceMaps: true, sourceFileName: filePath
+    const { code: codeRaw, rawMappings } = generate(node, {
+      comments: true, retainLines: true, sourceMaps: true, sourceFileName: filePath
     }, '');
-    const codeHash = sha256(code).substring(0,16);
-    const offset = offsetFromMap(rawMappings);
-    map.sources[0] += "|" + codeHash + "|" + offset;
-    const tracker = codeHash + "|" + offset;
-    offsetsMap[codeHash] = offset;
-    const sourceMapComment = sourceMapToDataURLComment(map);
+    const code = codeRaw.trim();
+    const originalOffset = rawMappings[0].original.line;
+    const codeHash = sha256(filePath + "\n" + code).substring(0,16);
+    const tracker = filePath + "|" + codeHash;
+    offsetsMap[codeHash] = originalOffset;
     currentNodes.set(code, node);
     if (previousNodes.has(code) &&
       !(node._parentLabel &&
@@ -653,11 +663,10 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
         updatedParentLabels.add(node._segmentLabel);
       }
       toWrite.push({
-        code: code + "\n" + sourceMapComment,
+        code,
         isAsync: node._topLevelAwait,
         addedOrChangedVars: node._definedVars,
         tracker,
-        sourceMapComment
       });
       addedOrChangedVarsSeen.push(...(node._definedVars ?? []));
     }
