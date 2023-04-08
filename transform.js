@@ -61,17 +61,22 @@ const handleAwaitExpression = (path) => {
       return;
     }
     const identifierNames = findNestedIdentifierValues(declarator.node.id);
+    const syncDeclarator = template.ast(`var ${identifierNames.join(', ')};`)
+    copyLocation(declarator, syncDeclarator);
+    const asyncAssignment = {
+      type: 'ExpressionStatement',
+      expression: {
+        type: 'AssignmentExpression',
+        operator: '=',
+        left: declarator.node.id,
+        right: declarator.node.init
+      }
+    };
+    copyLocation(declaration.node.id, asyncAssignment);
     const outputs = [
-      template.ast(`var ${identifierNames.join(', ')};`),
-      {
-        type: 'ExpressionStatement',
-        expression: {
-          type: 'AssignmentExpression',
-          operator: '=',
-          left: declarator.node.id,
-          right: declarator.node.init
-        }
-      }];
+      syncDeclarator,
+      asyncAssignment
+    ];
     declarator.parentPath.replaceWithMultiple(outputs);
   }
 };
@@ -150,6 +155,7 @@ const handleImportDotMeta = (path) => {
   if (path.node.meta.name === 'import') {
     const originalPathNode = path.node;
     path.replaceWith(template.ast('__import.meta'));
+    copyLocation(originalPathNode, path.node);
     copyLocation(originalPathNode.meta, path.node.object);
     copyLocation(originalPathNode.property, path.node.property);
   }
@@ -190,6 +196,7 @@ const handleImportDeclaration = (path) => {
     line = sourceString;
   }
   const newAst = template.ast(line);
+  copyLocation(path.node, newAst);
   if (namespaceId && specifiers.length > 0) {
     path.replaceWithMultiple(newAst);
   } else {
@@ -235,6 +242,7 @@ const handleCallExpressionEnter = (path) => {
   const isStatic = methodPath.node.static;
   const superClassName = getEnclosingSuperClassName(path);
   const ast = template.ast(`${superClassName}${isStatic ? '' : '.prototype'}.${methodName}.call(${isStatic ? '' : 'this'})`);
+  copyLocation(path.node, ast);
   const expressionAST = ast.expression;
   expressionAST.arguments = expressionAST.arguments.concat(path.node.arguments);
   path.replaceWith(expressionAST);
@@ -293,6 +301,7 @@ const nodesForClass = ({ className, classBodyNodes }) => {
              configurable: true
            });`
         );
+        copyLocation(classBodyNode, templateAST);
         const fun = templateAST.expression.arguments[2].properties[0].value;
         fun.body = classBodyNode.body;
         fun.params = classBodyNode.params;
@@ -310,6 +319,7 @@ const nodesForClass = ({ className, classBodyNodes }) => {
       templateAST = template.ast(
         `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = undefined;`
       );
+      copyLocation(classBodyNode, templateAST);
       if (classBodyNode.value !== null) {
         templateAST.expression.right = classBodyNode.value;
       }
@@ -451,9 +461,11 @@ const handleObjectExpression = (path) => {
     if (types.isObjectProperty(property)) {
       if (types.isIdentifier(key)) {
         ast = template.ast(`${name}.${key.name} = undefined;`);
+        copyLocation(property, ast);
       }
       if (types.isStringLiteral(key)) {
         ast = template.ast(`${name}['${key.value}'] = undefined;`);
+        copyLocation(property, ast);
       }
       ast.expression.right = property.value;
       copyLocation(property, ast.expression);
@@ -461,6 +473,7 @@ const handleObjectExpression = (path) => {
     } else if (types.isObjectMethod(property)) {
       if (types.isIdentifier(key)) {
         ast = template.ast(`${name}.${key.name} = function () { };`);
+        copyLocation(property, ast)
         const expressionRight = ast.expression.right;
         expressionRight.params = property.params;
         expressionRight.async = property.async;
@@ -528,9 +541,11 @@ const handleExportNameDeclaration = (path) => {
       if (types.isExportSpecifier(specifier)) {
         const localName = `${source ? 'importedObject.' : ''}${specifier.local.name}`;
         const resultsAST = astCodeToAddToModuleExports(specifier.exported, localName);
+        copyLocation(specifier, resultsAST);
         specifierASTs.push(resultsAST);
       } else if (types.isExportNamespaceSpecifier(specifier)) {
         specifierASTs.push(...wildcardExport(specifier.exported));
+        copyLocation(specifier, specifiers);
       }
     }
     if (source) {
@@ -571,13 +586,16 @@ const handleExportNameDeclaration = (path) => {
       outputASTs.push(resultsAST);
     }
   }
+  if (outputASTs.length > 0) {
+    copyLocation(path.node, outputASTs[0]);
+  }
   path.replaceWithMultiple(outputASTs);
 };
 
 const handleExportDefaultDeclaration = (path) => {
   const outputAST = template.ast('module.exports.default = undefined');
   outputAST.expression.right = path.node.declaration;
-  copyLocation(path.node, outputAST.expression);
+  copyLocation(path.node, outputAST);
   path.replaceWith(outputAST);
 };
 
