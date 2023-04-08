@@ -279,6 +279,7 @@ const nodesForClass = ({ className, classBodyNodes }) => {
         templateAST = template.ast(
           `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = ${classBodyNode.async ? 'async ' : ''}function${classBodyNode.generator ? '*' : ''} () {}`
         );
+        copyLocation(classBodyNode, templateAST);
         const fun = templateAST.expression.right;
         fun.body = classBodyNode.body;
         fun.params = classBodyNode.params;
