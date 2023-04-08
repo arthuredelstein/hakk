@@ -10,6 +10,10 @@ const reformatStack = (stack) => {
   const lines = stack.split("\n");
   const newLines = [];
   for (const line of lines) {
+    if (line.includes("hakk/evaluator.js") && line.includes("<anonymous>")) {
+      newLines.push("    at hakk repl input");
+      break;
+    }
     try {
       const [fragment, path, hash, lineNo, column] = line.match(rawStackLineRegex);
       const trueLineNo = parseInt(lineNo) + offsets[hash] - 1;
