@@ -13,7 +13,7 @@ const reformatStack = (stack) => {
     try {
       const [fragment, path, hash, lineNo, column] = line.match(rawStackLineRegex);
       const trueLineNo = parseInt(lineNo) + offsets[hash] - 1;
-      const finalForm =  "(" + path + ":" + trueLineNo + ":" + column + ")";
+      const finalForm =  `(${path}:${trueLineNo}:${column})`;
       newLines.push(line.replaceAll(fragment, finalForm));
     } catch (e) {
       newLines.push(line);
