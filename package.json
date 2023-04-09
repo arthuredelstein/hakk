@@ -1,7 +1,7 @@
 {
   "name": "hakk",
   "version": "0.0.4-alpha",
-  "description": "repl for hakking on node scripts",
+  "description": "Interactive programming for Node.js. Speed up your JavaScript development!",
   "main": "index.js",
   "scripts": {
     "test": "npx jest"
