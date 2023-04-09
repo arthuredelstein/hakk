@@ -14,7 +14,7 @@ Interactive programming for Node.js. Speed up your JavaScript development!
 
 To install `hakk`:
 ```
-sudo npm install -g .
+npm install -g hakk
 ```
 To run `hakk`:
 ```
