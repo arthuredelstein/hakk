@@ -1,6 +1,6 @@
 {
   "name": "hakk",
-  "version": "0.0.3-alpha",
+  "version": "0.0.4-alpha",
   "description": "repl for hakking on node scripts",
   "main": "index.js",
   "scripts": {
@@ -23,5 +23,9 @@
     "ignore": [
       "/playground/"
     ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arthuredelstein/hakk"
   }
 }
