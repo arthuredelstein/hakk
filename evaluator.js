@@ -5,13 +5,15 @@ module.exports = {
     const generator = function * (exports, require, module, __filename, __dirname, __import) {
       let valueToSend;
       while (true) {
-        const {code, sourceURL} = yield valueToSend;
+        const { code, sourceURL } = yield valueToSend;
         if (code === '.end') {
           break;
         }
-        const annotatedCode = code + (sourceURL ? `
-          //# sourceURL=${sourceURL}` : '');
-        //console.log("\n\nEvaluate:\n", annotatedCode);
+        const annotatedCode = code + (sourceURL
+          ? `
+          //# sourceURL=${sourceURL}`
+          : '');
+        // console.log("\n\nEvaluate:\n", annotatedCode);
         try {
           valueToSend = { result: eval(annotatedCode) }; // eslint-disable-line no-eval
         } catch (e) {
@@ -26,8 +28,8 @@ module.exports = {
     // Return an evaluation function that takes code and returns the result of
     // eval run in the generator scope. If evaluation causes an error, then
     // throw that error instead.
-    return function ({code, sourceURL}) {
-      const { result, error } = iterator.next({code, sourceURL}).value;
+    return function ({ code, sourceURL }) {
+      const { result, error } = iterator.next({ code, sourceURL }).value;
       if (error) {
         throw error;
       } else {

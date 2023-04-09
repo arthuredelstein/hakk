@@ -17,7 +17,7 @@ const copyLocation = (fromNode, toNode) => {
   toNode.start = fromNode.start;
   toNode.end = fromNode.end;
   toNode.loc = fromNode.loc;
-}
+};
 
 const getEnclosingFunction = path => path.findParent((path) => path.isFunction());
 
@@ -61,7 +61,7 @@ const handleAwaitExpression = (path) => {
       return;
     }
     const identifierNames = findNestedIdentifierValues(declarator.node.id);
-    const syncDeclarator = template.ast(`var ${identifierNames.join(', ')};`)
+    const syncDeclarator = template.ast(`var ${identifierNames.join(', ')};`);
     copyLocation(declarator, syncDeclarator);
     const asyncAssignment = {
       type: 'ExpressionStatement',
@@ -72,7 +72,7 @@ const handleAwaitExpression = (path) => {
         right: declarator.node.init
       }
     };
-    copyLocation(declaration.node.id, asyncAssignment);
+    copyLocation(declarator.node.id, asyncAssignment);
     const outputs = [
       syncDeclarator,
       asyncAssignment
@@ -473,7 +473,7 @@ const handleObjectExpression = (path) => {
     } else if (types.isObjectMethod(property)) {
       if (types.isIdentifier(key)) {
         ast = template.ast(`${name}.${key.name} = function () { };`);
-        copyLocation(property, ast)
+        copyLocation(property, ast);
         const expressionRight = ast.expression.right;
         expressionRight.params = property.params;
         expressionRight.async = property.async;
@@ -669,8 +669,8 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
     }, '');
     const code = codeRaw.trim();
     const originalOffset = rawMappings[0].original.line;
-    const codeHash = sha256(filePath + "\n" + code).substring(0,16);
-    const tracker = filePath + "|" + codeHash;
+    const codeHash = sha256(filePath + '\n' + code).substring(0, 16);
+    const tracker = filePath + '|' + codeHash;
     offsetsMap[codeHash] = originalOffset;
     currentNodes.set(code, node);
     if (previousNodes.has(code) &&
@@ -685,7 +685,7 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
         code,
         isAsync: node._topLevelAwait,
         addedOrChangedVars: node._definedVars,
-        tracker,
+        tracker
       });
       addedOrChangedVarsSeen.push(...(node._definedVars ?? []));
     }
