@@ -22,7 +22,7 @@ cd my-node-js-project
 hakk index.js
 ```
 
-## What `hakk` let's you do
+## What you can do with `hakk`
 ### Edit your program while it's running
 
 If you edit any source file, `hakk` will hot-swap the modified variable, function or class. Existing code that hasn't been modified doesn't get reloaded: your program will maintain its running state when you change it. Things you can change include:
@@ -34,7 +34,7 @@ If you edit any source file, `hakk` will hot-swap the modified variable, functio
 
 ### Interact with your program while it's running
 
-`hakk` is built around the familiar Node.js REPL interface. You can call functions you are working on in your source file to test them as you develop them. You can enter a top-level variable and the REPL will return that variable's value.
+`hakk` is built around the familiar Node.js REPL interface. You can call functions you are working on in your source file to test them as you develop them. You can enter a top-level variable and the REPL will return that variable's value. You can modify variables in the REPL, including those that were declared with `const` or `let`!
 
 ## Under development
 
