@@ -323,7 +323,7 @@ const nodesForClass = ({ className, classBodyNodes }) => {
       if (classBodyNode.value !== null) {
         templateAST.expression.right = classBodyNode.value;
       }
-      templateAST._removeCode = `if (${className} { delete ${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} }`;
+      templateAST._removeCode = `if (${className}) { delete ${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} }`;
     } else {
       throw new Error(`Unexpected ClassBody node type ${classBodyNode.type}`);
     }
