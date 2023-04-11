@@ -81,9 +81,22 @@ const handleAwaitExpression = (path) => {
   }
 };
 
+const handleForOfStatement = (path) => {
+  if (getEnclosingFunction(path)) {
+    return;
+  }
+  if (path.node.await) {
+    const topPath = path.find((path) => path.parentPath.isProgram());
+    topPath.node._topLevelForOfAwait = true;
+  }
+}
+
 const awaitVisitor = {
   AwaitExpression (path) {
     handleAwaitExpression(path);
+  },
+  ForOfStatement (path) {
+    handleForOfStatement(path);
   }
 };
 
@@ -693,7 +706,7 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
       }
       toWrite.push({
         code,
-        isAsync: node._topLevelAwait,
+        isAsync: node._topLevelAwait || node._topLevelForOfAwait,
         addedOrChangedVars: node._definedVars,
         tracker
       });
