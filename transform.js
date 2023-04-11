@@ -201,8 +201,10 @@ const handleImportDeclaration = (path) => {
     path.replaceWithMultiple(newAst);
   } else {
     copyLocation(path.node, newAst);
-    for (let i = 0; i < newAst.declarations.length; ++i) {
-      copyLocation(path.node.specifiers[i], newAst.declarations[i]);
+    if (newAst.declarations) {
+      for (let i = 0; i < newAst.declarations.length; ++i) {
+        copyLocation(path.node.specifiers[i], newAst.declarations[i]);
+      }
     }
     path.replaceWith(newAst);
   }
