@@ -190,7 +190,7 @@ class Repl {
       try {
         if (node._topLevelAwait) {
           result = await evalInCurrentModule(
-            `(async () => { return ${modifiedCode} })()`, node._definedVars);
+            `(async () => { return ${modifiedCode}\n })()`, node._definedVars);
         } else {
           result = evalInCurrentModule(modifiedCode, node._definedVars);
         }

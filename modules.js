@@ -201,7 +201,7 @@ class Module {
     try {
       for (const { code, isAsync, addedOrChangedVars, deletedVars, tracker } of this.getLatestFragments()) {
         if (isAsync) {
-          await this.eval({ code: `(async () => { ${code} })();`, sourceURL: tracker });
+          await this.eval({ code: `(async () => { ${code}\n })();`, sourceURL: tracker });
         } else {
           this.eval({ code, sourceURL: tracker });
         }

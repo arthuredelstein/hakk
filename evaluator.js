@@ -13,7 +13,6 @@ module.exports = {
           ? `
           //# sourceURL=${sourceURL}`
           : '');
-        // console.log("\n\nEvaluate:\n", annotatedCode);
         try {
           valueToSend = { result: eval(annotatedCode) }; // eslint-disable-line no-eval
         } catch (e) {

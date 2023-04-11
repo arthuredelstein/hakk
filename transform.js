@@ -62,7 +62,7 @@ const handleAwaitExpression = (path) => {
     }
     const identifierNames = findNestedIdentifierValues(declarator.node.id);
     const syncDeclarator = template.ast(`var ${identifierNames.join(', ')};`);
-    copyLocation(declarator, syncDeclarator);
+    copyLocation(declarator.node, syncDeclarator);
     const asyncAssignment = {
       type: 'ExpressionStatement',
       expression: {
@@ -72,7 +72,7 @@ const handleAwaitExpression = (path) => {
         right: declarator.node.init
       }
     };
-    copyLocation(declarator.node.id, asyncAssignment);
+    copyLocation(declarator.node, asyncAssignment);
     const outputs = [
       syncDeclarator,
       asyncAssignment
@@ -196,10 +196,14 @@ const handleImportDeclaration = (path) => {
     line = sourceString;
   }
   const newAst = template.ast(line);
-  copyLocation(path.node, newAst);
   if (namespaceId && specifiers.length > 0) {
+    copyLocation(path.node, newAst[0]);
     path.replaceWithMultiple(newAst);
   } else {
+    copyLocation(path.node, newAst);
+    for (let i = 0; i < newAst.declarations.length; ++i) {
+      copyLocation(path.node.specifiers[i], newAst.declarations[i]);
+    }
     path.replaceWith(newAst);
   }
 };
@@ -563,6 +567,7 @@ const handleExportNameDeclaration = (path) => {
           const objectName = declarator.init.name;
           for (const property of declarator.id.properties) {
             const resultsAST = astCodeToAddToModuleExports(property.value, `${objectName}.${property.key.name}`);
+            copyLocation(property, resultsAST);
             outputASTs.push(resultsAST);
           }
         } else if (types.isArrayPattern(declarator.id)) {
@@ -570,11 +575,13 @@ const handleExportNameDeclaration = (path) => {
           const arrayName = declarator.init.name;
           for (const element of declarator.id.elements) {
             const resultsAST = astCodeToAddToModuleExports(element, `${arrayName}[${i}]`);
+            copyLocation(element, resultsAST);
             outputASTs.push(resultsAST);
             ++i;
           }
         } else if (types.isIdentifier(declarator.id)) {
           const resultsAST = astCodeToAddToModuleExports(declarator.id, declarator.id.name);
+          copyLocation(declarator, resultsAST);
           outputASTs.push(resultsAST);
         }
       }
@@ -583,6 +590,7 @@ const handleExportNameDeclaration = (path) => {
       types.isClassDeclaration(declaration)) {
       const identifier = declaration.id;
       const resultsAST = astCodeToAddToModuleExports(identifier, identifier.name);
+      copyLocation(declaration, resultsAST);
       outputASTs.push(resultsAST);
     }
   }
