@@ -89,7 +89,7 @@ const handleForOfStatement = (path) => {
     const topPath = path.find((path) => path.parentPath.isProgram());
     topPath.node._topLevelForOfAwait = true;
   }
-}
+};
 
 const awaitVisitor = {
   AwaitExpression (path) {
@@ -409,6 +409,7 @@ const handleFunctionDeclaration = (path) => {
   declaration.init.body = functionNode.body;
   declaration.init.async = functionNode.async;
   declaration.init.generator = functionNode.generator;
+  declaration.init.params = functionNode.params;
   copyLocation(functionNode, expression);
   copyLocation(functionNode, declaration);
   copyLocation(functionNode.id, declaration.id);
@@ -691,7 +692,13 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
       comments: true, retainLines: true, sourceMaps: true, sourceFileName: filePath
     }, '');
     const code = codeRaw.trim();
-    const originalOffset = rawMappings[0].original.line;
+    let originalOffset;
+    try {
+      originalOffset = rawMappings[0].original.line;
+    } catch (e) {
+      console.log('Failed to compute offset: ', code);
+      originalOffset = 0;
+    }
     const codeHash = sha256(filePath + '\n' + code).substring(0, 16);
     const tracker = filePath + '|' + codeHash;
     offsetsMap[codeHash] = originalOffset;
