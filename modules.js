@@ -58,7 +58,7 @@ const originalRequire = require;
 
 const originalResolveFilename = (localPath, dirPath) =>
   OriginalModule._resolveFilename(
-    localPath, null, false, { paths: [dirPath] });
+    localPath, { filename: dirPath }, false, { paths: [dirPath] });
 
 class Module {
   constructor (filePath, moduleManager, isAsync) {
