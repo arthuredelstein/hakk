@@ -729,6 +729,15 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
     }
   }
   const fragments = [...toRemove, ...toWrite];
+  // Any defined variables should be declared at the top because sometimes
+  // vars are referenced forward.
+  if (addedOrChangedVarsSeen.length > 0) {
+    const declareFirstFragment = {
+      code: `var ${addedOrChangedVarsSeen.join(", ")};`,
+      isAsync: false,
+    };
+    fragments.unshift(declareFirstFragment);
+  }
   return { fragments, latestNodes: currentNodes, offsetsMap };
 };
 
