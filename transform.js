@@ -733,8 +733,8 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
   // vars are referenced forward.
   if (addedOrChangedVarsSeen.length > 0) {
     const declareFirstFragment = {
-      code: `var ${addedOrChangedVarsSeen.join(", ")};`,
-      isAsync: false,
+      code: `var ${addedOrChangedVarsSeen.join(', ')};`,
+      isAsync: false
     };
     fragments.unshift(declareFirstFragment);
   }

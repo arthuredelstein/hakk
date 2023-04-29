@@ -4,7 +4,7 @@ const { Repl } = require('./repl.js');
 
 const run = async (filename) => {
   if (filename === undefined) {
-    console.log("Please specify a valid filename: `hakk my-file.js`");
+    console.log('Please specify a valid filename: `hakk my-file.js`');
     process.exitCode = 1;
     return;
   }
