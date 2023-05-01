@@ -654,11 +654,24 @@ const transform = (ast, visitors) => {
   return ast;
 };
 
+const functionDeclarationsFirst = (nodes) => {
+  const head = [], tail = [];
+  for (const node of nodes) {
+    if (types.isFunctionDeclaration(node)) {
+      head.push(node);
+    } else {
+      tail.push(node);
+    }
+  }
+  return [...head, ...tail];
+};
+
 const prepareAST = (code) => {
   if (code.trim().length === 0) {
     return '';
   }
   const ast = parse(code);
+  ast.program.body = functionDeclarationsFirst(ast.program.body);
   return transform(ast,
     [importVisitor, exportVisitor, superVisitor, staticBlockVisitor,
       objectVisitor, classVisitor, awaitVisitor, varVisitor]);
