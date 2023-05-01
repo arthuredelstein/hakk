@@ -72,9 +72,11 @@ class Module {
     this.dependingModules_ = new Set();
     const __import = (path) => this.__import(path);
     __import.meta = { url: url.pathToFileURL(this.filePath).href };
+    const require = (path) => this.require(path);
+    require.resolve = (path) => originalResolveFilename(path, this.dirPath);
     this.eval = scopedEvaluator(
       this.exports,
-      (path) => this.require(path),
+      require,
       this,
       this.filePath,
       this.dirPath,
