@@ -250,8 +250,8 @@ class ModuleManager {
       return this.moduleMap_.get(filePath);
     } else {
       const module = new Module(filePath, this, false);
-      module.updateFileSync();
       this.moduleMap_.set(filePath, module);
+      module.updateFileSync();
       this.moduleCreationListeners_.forEach(listener => listener(filePath));
       console.log('loaded CommonJS module: ' + path.relative('.', filePath));
       return module;
@@ -263,8 +263,8 @@ class ModuleManager {
       return this.moduleMap_.get(filePath);
     } else {
       const module = new Module(filePath, this, true);
-      await module.updateFileAsync();
       this.moduleMap_.set(filePath, module);
+      await module.updateFileAsync();
       this.moduleCreationListeners_.forEach(listener => listener(filePath));
       console.log('loaded ES module: ' + path.relative('.', filePath));
       return module;
