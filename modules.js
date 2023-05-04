@@ -251,9 +251,9 @@ class ModuleManager {
     } else {
       const module = new Module(filePath, this, false);
       this.moduleMap_.set(filePath, module);
+      console.log('loading ' + path.relative('.', filePath));
       module.updateFileSync();
       this.moduleCreationListeners_.forEach(listener => listener(filePath));
-      console.log('loaded CommonJS module: ' + path.relative('.', filePath));
       return module;
     }
   }
@@ -264,9 +264,9 @@ class ModuleManager {
     } else {
       const module = new Module(filePath, this, true);
       this.moduleMap_.set(filePath, module);
+      console.log('loading ' + path.relative('.', filePath));
       await module.updateFileAsync();
       this.moduleCreationListeners_.forEach(listener => listener(filePath));
-      console.log('loaded ES module: ' + path.relative('.', filePath));
       return module;
     }
   }
@@ -291,7 +291,7 @@ class ModuleManager {
   }
 
   getModulePaths () {
-    return [...this.moduleMap_.keys()].reverse();
+    return [...this.moduleMap_.keys()];
   }
 
   getVars (filePath) {
