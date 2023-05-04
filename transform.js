@@ -655,7 +655,8 @@ const transform = (ast, visitors) => {
 };
 
 const functionDeclarationsFirst = (nodes) => {
-  const head = [], tail = [];
+  const head = [];
+  const tail = [];
   for (const node of nodes) {
     if (types.isFunctionDeclaration(node)) {
       head.push(node);
