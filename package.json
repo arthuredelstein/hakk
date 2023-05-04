@@ -27,5 +27,17 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/arthuredelstein/hakk"
-  }
+  },
+  "files": [
+    "bin.js",
+    "errors.js",
+    "evaluator.js",
+    "index.js",
+    "modules.js",
+    "package.json",
+    "README.md",
+    "repl.js",
+    "transform.js",
+    "utils.js"
+  ]
 }
