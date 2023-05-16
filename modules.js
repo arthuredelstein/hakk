@@ -85,8 +85,12 @@ class Module {
       ? () => this.updateFileAsync()
       : () => this.updateFileSync();
     watchForFileChanges(this.filePath, 100, () => {
-      moduleManager.onUpdate(this.filePath);
-      update();
+      try {
+        moduleManager.onUpdate(this.filePath);
+        update();
+      } catch (e) {
+        console.log(e);
+      }
     });
   }
 
@@ -221,6 +225,7 @@ class ModuleManager {
     this.moduleCreationListeners_ = new Set();
     this.moduleUpdateListeners_ = new Set();
     this.moduleMap_ = new Map();
+    Error.stackTraceLimit = Infinity;
     errors.setupStackTraces();
   }
 
