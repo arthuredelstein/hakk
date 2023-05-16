@@ -85,12 +85,8 @@ class Module {
       ? () => this.updateFileAsync()
       : () => this.updateFileSync();
     watchForFileChanges(this.filePath, 100, () => {
-      try {
-        moduleManager.onUpdate(this.filePath);
-        update();
-      } catch (e) {
-        console.log(e);
-      }
+      moduleManager.onUpdate(this.filePath);
+      update();
     });
   }
 
@@ -183,16 +179,16 @@ class Module {
   }
 
   updateFileSync () {
-    const latestFragments = this.getLatestFragments();
-    // First screen for top-level awaits.
-    for (const { isAsync } of latestFragments) {
-      if (isAsync) {
-        throw new UnexpectedTopLevelAwaitFoundError(
-          'Found a top-level await in a sync module.');
-      }
-    }
-    // Now evaluate each line of code.
     try {
+      const latestFragments = this.getLatestFragments();
+      // First screen for top-level awaits.
+      for (const { isAsync } of latestFragments) {
+        if (isAsync) {
+          throw new UnexpectedTopLevelAwaitFoundError(
+            'Found a top-level await in a sync module.');
+        }
+      }
+      // Now evaluate each line of code.
       for (const { code, addedOrChangedVars, deletedVars, tracker } of latestFragments) {
         this.eval({ code, sourceURL: tracker });
         this.handleVarUpdates({ addedOrChangedVars, deletedVars });
