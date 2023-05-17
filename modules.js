@@ -185,7 +185,7 @@ class Module {
       for (const { isAsync } of latestFragments) {
         if (isAsync) {
           throw new UnexpectedTopLevelAwaitFoundError(
-            'Found a top-level await in a sync module.');
+            `Found an unexpected top-level await in file '${this.filePath}'.`);
         }
       }
       // Now evaluate each line of code.
