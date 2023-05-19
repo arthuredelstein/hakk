@@ -713,14 +713,15 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
       console.log('Failed to compute offset: ', code);
       originalOffset = 0;
     }
+    const codeNormalized = code.replace(/\s+/g, " ");
     const codeHash = sha256(filePath + '\n' + code).substring(0, 16);
     const tracker = filePath + '|' + codeHash;
     offsetsMap[codeHash] = originalOffset;
-    currentNodes.set(code, node);
-    if (previousNodes.has(code) &&
+    currentNodes.set(codeNormalized, node);
+    if (previousNodes.has(codeNormalized) &&
       !(node._parentLabel &&
         updatedParentLabels.has(node._parentLabel))) {
-      previousNodes.delete(code);
+      previousNodes.delete(codeNormalized);
     } else {
       if (node._segmentLabel) {
         updatedParentLabels.add(node._segmentLabel);
@@ -739,7 +740,8 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
   for (const node of previousNodes.values()) {
     if (node._removeCode) {
       const deletedVars = node._definedVars ? node._definedVars.filter(v => !addedOrChangedVarsSeen.includes(v)) : undefined;
-      toRemove.push({ code: node._removeCode, isAsync: false, deletedVars });
+      // Remove in reverse order:
+      toRemove.unshift({ code: node._removeCode, isAsync: false, deletedVars });
     }
   }
   const fragments = [...toRemove, ...toWrite];
