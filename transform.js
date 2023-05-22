@@ -695,6 +695,19 @@ const prepareAstNodes = (code) => {
   }
 };
 
+const findCodeToRemove = (previousNodes, addedOrChangedVarsSeen) => {
+  // Removal code for previousNodes that haven't been found in new version.
+  const toRemove = [];
+  for (const node of previousNodes.values()) {
+    if (node._removeCode) {
+      const deletedVars = node._definedVars ? node._definedVars.filter(v => !addedOrChangedVarsSeen.includes(v)) : undefined;
+      // Remove in reverse order:
+      toRemove.unshift({ code: node._removeCode, isAsync: false, deletedVars });
+    }
+  }
+  return toRemove;
+};
+
 const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
   const currentNodes = new Map();
   const updatedParentLabels = new Set();
@@ -735,15 +748,7 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
       addedOrChangedVarsSeen.push(...(node._definedVars ?? []));
     }
   }
-  // Removal code for previousNodes that haven't been found in new version.
-  const toRemove = [];
-  for (const node of previousNodes.values()) {
-    if (node._removeCode) {
-      const deletedVars = node._definedVars ? node._definedVars.filter(v => !addedOrChangedVarsSeen.includes(v)) : undefined;
-      // Remove in reverse order:
-      toRemove.unshift({ code: node._removeCode, isAsync: false, deletedVars });
-    }
-  }
+  const toRemove = findCodeToRemove(previousNodes, addedOrChangedVarsSeen);
   const fragments = [...toRemove, ...toWrite];
   // Any defined variables should be declared at the top because sometimes
   // vars are referenced forward.
