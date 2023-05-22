@@ -708,6 +708,20 @@ const findCodeToRemove = (previousNodes, addedOrChangedVarsSeen) => {
   return toRemove;
 };
 
+const findVarsToDeclare = (addedOrChangedVarsSeen) => {
+  // Any defined variables should be declared at the top because sometimes
+  // vars are referenced forward.
+  const toDeclare = [];
+  if (addedOrChangedVarsSeen.length > 0) {
+    const declareFirstFragment = {
+      code: `var ${addedOrChangedVarsSeen.join(', ')};`,
+      isAsync: false
+    };
+    toDeclare.unshift(declareFirstFragment);
+  }
+  return toDeclare;
+};
+
 const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
   const currentNodes = new Map();
   const updatedParentLabels = new Set();
@@ -749,16 +763,8 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
     }
   }
   const toRemove = findCodeToRemove(previousNodes, addedOrChangedVarsSeen);
-  const fragments = [...toRemove, ...toWrite];
-  // Any defined variables should be declared at the top because sometimes
-  // vars are referenced forward.
-  if (addedOrChangedVarsSeen.length > 0) {
-    const declareFirstFragment = {
-      code: `var ${addedOrChangedVarsSeen.join(', ')};`,
-      isAsync: false
-    };
-    fragments.unshift(declareFirstFragment);
-  }
+  const toDeclare = findVarsToDeclare(addedOrChangedVarsSeen);
+  const fragments = [...toDeclare, ...toRemove, ...toWrite];
   return { fragments, latestNodes: currentNodes, offsetsMap };
 };
 
