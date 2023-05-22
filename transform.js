@@ -722,6 +722,21 @@ const findVarsToDeclare = (addedOrChangedVarsSeen) => {
   return toDeclare;
 };
 
+const getCodeAndOriginalOffset = (node, filePath) => {
+  const { code: codeRaw, rawMappings } = generate(node, {
+    comments: true, retainLines: true, sourceMaps: true, sourceFileName: filePath
+  }, '');
+  const code = codeRaw.trim();
+  let originalOffset;
+  try {
+    originalOffset = rawMappings[0].original.line;
+  } catch (e) {
+    console.log('Failed to compute offset: ', code);
+    originalOffset = 0;
+  }
+  return { code, originalOffset };
+};
+
 const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
   const currentNodes = new Map();
   const updatedParentLabels = new Set();
@@ -729,18 +744,8 @@ const changedNodesToCodeFragments = (previousNodes, nodes, filePath) => {
   const addedOrChangedVarsSeen = [];
   const offsetsMap = {};
   for (const node of nodes) {
-    const { code: codeRaw, rawMappings } = generate(node, {
-      comments: true, retainLines: true, sourceMaps: true, sourceFileName: filePath
-    }, '');
-    const code = codeRaw.trim();
-    let originalOffset;
-    try {
-      originalOffset = rawMappings[0].original.line;
-    } catch (e) {
-      console.log('Failed to compute offset: ', code);
-      originalOffset = 0;
-    }
-    const codeNormalized = code.replace(/\s+/g, " ");
+    const { code, originalOffset } = getCodeAndOriginalOffset(node, filePath);
+    const codeNormalized = code.replace(/\s+/g, ' ');
     const codeHash = sha256(filePath + '\n' + code).substring(0, 16);
     const tracker = filePath + '|' + codeHash;
     offsetsMap[codeHash] = originalOffset;
