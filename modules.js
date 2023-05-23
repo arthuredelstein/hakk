@@ -128,24 +128,32 @@ class Module {
   }
 
   updateRequire (filePath) {
-    for (const [code, node] of this.previousNodes.entries()) {
-      if (node._topLevelRequire) {
-        const fullRequirePath = originalResolveFilename(node._topLevelRequire, this.dirPath);
-        if (fullRequirePath === filePath) {
-          this.eval({ code, sourceURL: filePath });
+    try {
+      for (const [code, node] of this.previousNodes.entries()) {
+        if (node._topLevelRequire) {
+          const fullRequirePath = originalResolveFilename(node._topLevelRequire, this.dirPath);
+          if (fullRequirePath === filePath) {
+            this.eval({ code, sourceURL: filePath });
+          }
         }
       }
+    } catch (e) {
+      console.error(`Error updating required module ${filePath}:\n${e}`);
     }
   }
 
   async updateImport (filePath) {
-    for (const [code, node] of this.previousNodes.entries()) {
-      if (node._topLevelImport) {
-        const fullImportPath = originalResolveFilename(node._topLevelImport, this.dirPath);
-        if (fullImportPath === filePath) {
-          await this.eval({ code, sourceURL: filePath });
+    try {
+      for (const [code, node] of this.previousNodes.entries()) {
+        if (node._topLevelImport) {
+          const fullImportPath = originalResolveFilename(node._topLevelImport, this.dirPath);
+          if (fullImportPath === filePath) {
+            await this.eval({ code, sourceURL: filePath });
+          }
         }
       }
+    } catch (e) {
+      console.error(`Error updating imported module ${filePath}:\n${e}`);
     }
   }
 
