@@ -36,7 +36,7 @@ const isFileAsync = (filePath) => {
       }
     }
   } catch (e) {
-    console.log(e);
+    console.error(e);
   }
   return false;
 };
@@ -112,6 +112,14 @@ class Module {
     }
   }
 
+  async evalAsync({code, sourceURL, isAsync}) {
+    if (isAsync) {
+      await this.eval({ code: `(async () => { ${code}\n })();`, sourceURL });
+    } else {
+      this.eval({ code, sourceURL });
+    }
+  }
+
   getLatestFragments () {
     const contents = fs.readFileSync(this.filePath, { encoding: 'utf8' }).toString();
     const ast = prepareAST(contents);
@@ -148,12 +156,12 @@ class Module {
         if (node._topLevelImport) {
           const fullImportPath = originalResolveFilename(node._topLevelImport, this.dirPath);
           if (fullImportPath === filePath) {
-            await this.eval({ code, sourceURL: filePath });
+            await this.evalAsync({code, sourceURL: filePath, isAsync: true });
           }
         }
       }
     } catch (e) {
-      console.error(`Error updating imported module ${filePath}:\n${e}`);
+      console.error(`Error updating imported module ${filePath}:\n${e} ${e.stack}`);
     }
   }
 
@@ -212,11 +220,7 @@ class Module {
   async updateFileAsync () {
     try {
       for (const { code, isAsync, addedOrChangedVars, deletedVars, tracker } of this.getLatestFragments()) {
-        if (isAsync) {
-          await this.eval({ code: `(async () => { ${code}\n })();`, sourceURL: tracker });
-        } else {
-          this.eval({ code, sourceURL: tracker });
-        }
+        await this.evalAsync({code, sourceURL: tracker, isAsync});
         this.handleVarUpdates({ addedOrChangedVars, deletedVars });
       }
     } catch (e) {
