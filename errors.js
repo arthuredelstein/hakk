@@ -24,6 +24,9 @@ const reformatStack = (stack) => {
       newLines.push('    at hakk repl input');
       break;
     }
+    if (line.includes('hakk/evaluator.js') && line.includes('at generator')) {
+      break;
+    }
     try {
       const [fragment, path, hash, lineNo, column] = line.match(rawStackLineRegex);
       const trueLineNo = parseInt(lineNo) + offsets[hash] - 1;
