@@ -63,6 +63,11 @@ const handleAwaitExpression = (path) => {
     const identifierNames = findNestedIdentifierValues(declarator.node.id);
     const syncDeclarator = template.ast(`var ${identifierNames.join(', ')};`);
     copyLocation(declarator.node, syncDeclarator);
+    // TODO: Make more precise by pointing to individual identifiers:
+    for (const declaration of syncDeclarator.declarations) {
+      copyLocation(declarator.node, declaration);
+      copyLocation(declarator.node, declaration.id);
+    }
     const asyncAssignment = {
       type: 'ExpressionStatement',
       expression: {
