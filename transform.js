@@ -472,43 +472,78 @@ const handleObjectExpression = (path) => {
     return;
   }
   const originalProperties = path.node.properties;
-  path.node.properties = [];
   const name = path.parentPath.node.id.name;
   const outputASTs = [];
+  let identifierNames = [];
+  if (name !== undefined) {
+    path.node.properties = [];
+  } else {
+    identifierNames = findNestedIdentifierValues(path.parentPath.node.id);
+    const declarator = template.ast(`var ${identifierNames.join(', ')};`);    path.parentPath.node.init = undefined;
+    path.parentPath.parentPath.replaceWith(declarator);
+  }
   for (const property of originalProperties) {
     const key = property.key;
     let ast;
     if (types.isObjectProperty(property)) {
       if (types.isIdentifier(key)) {
-        ast = template.ast(`${name}.${key.name} = undefined;`);
-        copyLocation(property, ast);
+        if (name === undefined) {
+          if (identifierNames.includes(key.name)) {
+            ast = template.ast(`${key.name} = undefined;`);
+          }
+        } else {
+          ast = template.ast(`${name}.${key.name} = undefined;`);
+        }
+        if (ast) {
+          copyLocation(property, ast);
+        }
       }
       if (types.isStringLiteral(key)) {
-        ast = template.ast(`${name}['${key.value}'] = undefined;`);
-        copyLocation(property, ast);
+        if (name === undefined) {
+          if (identifierNames.includes(key.value)) {
+            ast = template.ast(`${key.value} = undefined;`);
+          }
+        } else {
+          ast = template.ast(`${name}['${key.value}'] = undefined;`);
+        }
+        if (ast) {
+          copyLocation(property, ast);
+        }
       }
-      ast.expression.right = property.value;
-      copyLocation(property, ast.expression);
-      copyLocation(property.key, ast.expression.left);
+      if (ast) {
+        ast.expression.right = property.value;
+        copyLocation(property, ast.expression);
+        copyLocation(property.key, ast.expression.left);
+      }
     } else if (types.isObjectMethod(property)) {
       if (types.isIdentifier(key)) {
-        ast = template.ast(`${name}.${key.name} = function () { };`);
-        copyLocation(property, ast);
-        const expressionRight = ast.expression.right;
-        expressionRight.params = property.params;
-        expressionRight.async = property.async;
-        expressionRight.generator = property.generator;
-        expressionRight.body = property.body;
-        copyLocation(property.body, ast.expression);
-        copyLocation(property.key, ast.expression.left);
+        if (name === undefined) {
+          if (identifierNames.includes(key.name)) {
+            ast = template.ast(`${key.name} = function () { };`);
+          }
+        } else {
+          ast = template.ast(`${name}.${key.name} = function () { };`);
+        }
+        if (ast) {
+          copyLocation(property, ast);
+          const expressionRight = ast.expression.right;
+          expressionRight.params = property.params;
+          expressionRight.async = property.async;
+          expressionRight.generator = property.generator;
+          expressionRight.body = property.body;
+          copyLocation(property.body, ast.expression);
+          copyLocation(property.key, ast.expression.left);
+          }
       } else {
         throw new Error(`Unexpected key type '${key.type}'.`);
       }
     } else {
       throw new Error(`Unexpected object member '${property.type}'.`);
     }
-    ast._removeCode = `delete ${name}['${key.name}']`;
-    outputASTs.push(ast);
+    if (ast) {
+      ast._removeCode = `delete ${name}['${key.name}']`;
+      outputASTs.push(ast);
+    }
   }
   for (const outputAST of outputASTs.reverse()) {
     path.parentPath.parentPath.insertAfter(outputAST);
@@ -731,7 +766,7 @@ const getCodeAndOriginalOffset = (node, filePath) => {
   try {
     originalOffset = rawMappings[0].original.line;
   } catch (e) {
-    console.log('Failed to compute offset: ', code);
+    console.log('Failed to compute offset: ', code, node);
     originalOffset = 0;
   }
   return { code, originalOffset };
