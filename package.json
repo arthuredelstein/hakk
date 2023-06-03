@@ -28,6 +28,14 @@
     "type": "git",
     "url": "https://github.com/arthuredelstein/hakk"
   },
+  "keywords": [
+    "hmr",
+    "repl",
+    "hot swap",
+    "hot load",
+    "hot reload",
+    "live"
+  ],
   "files": [
     "bin.js",
     "errors.js",

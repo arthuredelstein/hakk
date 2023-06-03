@@ -6,9 +6,9 @@ Interactive programming for Node.js. Speed up your JavaScript development!
 
 `hakk` is a tool for Node.js that allows you to interactively develop, modify, and test your JavaScript code while it's running.
 
-`hakk` watches your JavaScript source files, and hot swaps (auto-reloads) any code you modify while your program runs. It also provides an interactive prompt (similar to the Node.js REPL) that lets you test individual parts of your program as you tinker with them.
+`hakk` watches your JavaScript source files, and hot updates any code you modify while your code is running. It also provides an interactive prompt (similar to the Node.js REPL) that lets you test individual parts of your program as you tinker with them.
 
-`hakk` runs in your terminal and it works alongside any code editor.
+`hakk` runs in your terminal and works alongside any code editor.
 
 ## Getting started
 
