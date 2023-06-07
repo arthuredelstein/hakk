@@ -92,7 +92,7 @@ class Module {
 
   require (requirePath) {
     const fullRequirePath = originalResolveFilename(requirePath, this.dirPath);
-    if (isLocalPath(requirePath)) {
+    if (isLocalPath(requirePath) && !requirePath.endsWith(".json")) {
       const module = this.moduleManager_.getModuleSync(fullRequirePath);
       module.addDependingModule(this);
       return module.exports;

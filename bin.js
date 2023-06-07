@@ -3,11 +3,11 @@
 const { run } = require('./index.js');
 const minimist = require('minimist');
 
-const argv = minimist(process.argv.slice(2));
-const filename = argv._[0];
+const flags = minimist(process.argv.slice(2));
+const filename = flags._[0];
 
 const main = () => {
-  run(filename, argv);
+  run(filename, flags);
 };
 
 if (require.main === module) {
