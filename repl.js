@@ -97,8 +97,6 @@ const monitorSpecialKeys = (replServer, modulePathManager) => {
     } else if (shiftOnly && key.name === 'left') {
       modulePathManager.back();
       updatePrompt(replServer, modulePathManager);
-    } else if (key.name === 'd' && key.ctrl === true) {
-      process.exit(0);
     } else {
       originalTtyWrite(d, key);
     }
