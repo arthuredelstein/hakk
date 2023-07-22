@@ -14,7 +14,8 @@ const run = async (filename, flags) => {
     return;
   }
   const filenameFullPath = path.resolve(filename);
-  const moduleManager = await ModuleManager.create(filenameFullPath);
+  const isWeb = filenameFullPath.endsWith(".html") || filenameFullPath.endsWith(".htm");
+  const moduleManager = await ModuleManager.create(filenameFullPath, isWeb);
   await Repl.start(moduleManager);
 };
 

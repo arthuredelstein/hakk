@@ -231,7 +231,8 @@ class Module {
 }
 
 class ModuleManager {
-  constructor () {
+  constructor (isWeb = false) {
+    this.isWeb = isWeb;
     this.moduleCreationListeners_ = new Set();
     this.moduleUpdateListeners_ = new Set();
     this.moduleMap_ = new Map();
