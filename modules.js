@@ -1,6 +1,7 @@
 const path = require('node:path');
 const { Module: OriginalModule } = require('node:module');
 const { scopedEvaluator } = require('./evaluator.js');
+const { webEvaluator } = require('./html.js');
 const { changedNodesToCodeFragments, prepareAST } = require('./transform.js');
 const fs = require('node:fs');
 const url = require('url');
@@ -61,7 +62,8 @@ const originalResolveFilename = (localPath, dirPath) =>
     localPath, { filename: dirPath }, false, { paths: [dirPath] });
 
 class Module {
-  constructor (filePath, moduleManager, isAsync) {
+  constructor (filePath, moduleManager, isAsync, isWeb) {
+    this.isWeb = isWeb;
     this.filePath = path.resolve(filePath);
     this.moduleManager_ = moduleManager;
     this.dirPath = path.dirname(filePath);
@@ -74,14 +76,22 @@ class Module {
     __import.meta = { url: url.pathToFileURL(this.filePath).href };
     const require = (path) => this.require(path);
     require.resolve = (path) => originalResolveFilename(path, this.dirPath);
-    this.eval = scopedEvaluator(
-      this.exports,
-      require,
-      this,
-      this.filePath,
-      this.dirPath,
-      __import);
-    const update = this.isAsync
+    this.eval = isWeb ?
+      webEvaluator(
+        this.exports,
+        require,
+        this,
+        this.filePath,
+        this.dirPath,
+        __import) :
+      scopedEvaluator(
+        this.exports,
+        require,
+        this,
+        this.filePath,
+        this.dirPath,
+        __import);
+      const update = this.isAsync
       ? () => this.updateFileAsync()
       : () => this.updateFileSync();
     watchForFileChanges(this.filePath, 100, () => {
@@ -121,7 +131,7 @@ class Module {
   }
 
   getLatestFragments () {
-    const contents = fs.readFileSync(this.filePath, { encoding: 'utf8' }).toString();
+    const contents = this.isWeb ? "" : fs.readFileSync(this.filePath, { encoding: 'utf8' }).toString();
     const ast = prepareAST(contents);
     const body = ast.program ? ast.program.body : [];
     const { latestNodes, fragments, offsetsMap } = changedNodesToCodeFragments(
@@ -231,7 +241,7 @@ class Module {
 }
 
 class ModuleManager {
-  constructor (isWeb = false) {
+  constructor (isWeb) {
     this.isWeb = isWeb;
     this.moduleCreationListeners_ = new Set();
     this.moduleUpdateListeners_ = new Set();
@@ -240,10 +250,12 @@ class ModuleManager {
     errors.setupStackTraces();
   }
 
-  static async create (rootModulePath) {
+  
+
+  static async create (rootModulePath, isWeb) {
     const rootModuleFullPath = path.resolve(rootModulePath);
-    const moduleManager = new ModuleManager();
-    let fileIsAsync = isFileAsync(rootModuleFullPath);
+    const moduleManager = new ModuleManager(isWeb);
+    let fileIsAsync = isWeb || isFileAsync(rootModuleFullPath);
     if (!fileIsAsync) {
       try {
         moduleManager.getModuleSync(rootModuleFullPath);
@@ -265,7 +277,7 @@ class ModuleManager {
     if (this.moduleMap_.has(filePath)) {
       return this.moduleMap_.get(filePath);
     } else {
-      const module = new Module(filePath, this, false);
+      const module = new Module(filePath, this, false, this.isWeb);
       this.moduleMap_.set(filePath, module);
       console.log('loading ' + path.relative('.', filePath));
       module.updateFileSync();
@@ -278,7 +290,7 @@ class ModuleManager {
     if (this.moduleMap_.has(filePath)) {
       return this.moduleMap_.get(filePath);
     } else {
-      const module = new Module(filePath, this, true);
+      const module = new Module(filePath, this, true, this.isWeb);
       this.moduleMap_.set(filePath, module);
       console.log('loading ' + path.relative('.', filePath));
       await module.updateFileAsync();

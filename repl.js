@@ -188,7 +188,9 @@ class Repl {
     for (const node of nodes) {
       const modifiedCode = generate(node).code;
       try {
-        if (node._topLevelAwait) {
+        if (this.moduleManager_.isWeb) {
+          result = await evalInCurrentModule(modifiedCode, node._definedVars);
+        } else if (node._topLevelAwait) {
           result = await evalInCurrentModule(
             `(async () => { return ${modifiedCode}\n })()`, node._definedVars);
         } else if (node._topLevelForOfAwait) {

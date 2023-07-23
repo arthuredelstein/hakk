@@ -2,6 +2,7 @@ const path = require('node:path');
 const { ModuleManager } = require('./modules.js');
 const { Repl } = require('./repl.js');
 const pjson = require('./package.json');
+const { openLocalfileInBrowser } = require('./html.js');
 
 const run = async (filename, flags) => {
   if (flags['version']) {
@@ -15,6 +16,9 @@ const run = async (filename, flags) => {
   }
   const filenameFullPath = path.resolve(filename);
   const isWeb = filenameFullPath.endsWith(".html") || filenameFullPath.endsWith(".htm");
+  if (isWeb) {
+    await openLocalfileInBrowser(filenameFullPath);
+  }
   const moduleManager = await ModuleManager.create(filenameFullPath, isWeb);
   await Repl.start(moduleManager);
 };
