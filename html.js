@@ -28,10 +28,8 @@ const scriptToInject = `
         const { code, id } = data;
         try {
           const result = evalFunction({code});
-          console.log({data, result})
           socket.send(JSON.stringify({id, result}));
         } catch (e) {
-          console.log({data, e})
           socket.send(JSON.stringify({id, error: e.toString()}));
         }
       }
