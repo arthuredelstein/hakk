@@ -402,26 +402,6 @@ const handleClassDeclaration = (path) => {
   path.replaceWith(expression);
 };
 
-const handleFunctionDeclaration = (path) => {
-  if (!types.isProgram(path.parentPath)) {
-    return;
-  }
-  const functionNode = path.node;
-  const expression = template.ast('var aFunction = function aFunction () {}');
-  const declaration = expression.declarations[0];
-  declaration.id.name = functionNode.id.name;
-  declaration.init.id.name = functionNode.id.name;
-  declaration.init.body = functionNode.body;
-  declaration.init.async = functionNode.async;
-  declaration.init.generator = functionNode.generator;
-  declaration.init.params = functionNode.params;
-  copyLocation(functionNode, expression);
-  copyLocation(functionNode, declaration);
-  copyLocation(functionNode.id, declaration.id);
-  copyLocation(functionNode, declaration.init);
-  path.replaceWith(expression);
-};
-
 const handlePrivateName = (path) => {
   path.replaceWith(path.node.id);
   path.node.name = '_PRIVATE_' + path.node.name;
@@ -452,9 +432,51 @@ const classVisitor = {
       handleClassDeclaration(path);
     }
   },
+};
+
+const handleFunctionDeclaration = (path) => {
+  if (!types.isProgram(path.parentPath)) {
+    return;
+  }
+  const functionNode = path.node;
+  const expression = template.ast('var aFunction = function aFunction () {}');
+  const declaration = expression.declarations[0];
+  declaration.id.name = functionNode.id.name;
+  declaration.init.id.name = functionNode.id.name;
+  declaration.init.body = functionNode.body;
+  declaration.init.async = functionNode.async;
+  declaration.init.generator = functionNode.generator;
+  declaration.init.params = functionNode.params;
+  copyLocation(functionNode, expression);
+  copyLocation(functionNode, declaration);
+  copyLocation(functionNode.id, declaration.id);
+  copyLocation(functionNode, declaration.init);
+  path.replaceWith(expression);
+};
+
+const handleFunctionExpression = (path) => {
+  const grandparentPath = path.parentPath.parentPath;
+  if (!types.isVariableDeclaration(grandparentPath) ||
+      !types.isProgram(grandparentPath.parentPath)) {
+    return;
+  }
+  const name = path.parentPath.node.id.name;
+  const implName = name + "_hakk_";
+  path.parentPath.node.id.name = implName;
+  const wrapperAST = template.ast(
+    `var ${name} = (...args) => ${implName}(...args);`);
+  grandparentPath.insertAfter(wrapperAST);
+};
+
+const functionVisitor = {
   FunctionDeclaration: {
     enter (path) {
       handleFunctionDeclaration(path);
+    }
+  },
+  FunctionExpression: {
+    enter (path) {
+      handleFunctionExpression(path);
     }
   }
 };
@@ -715,7 +737,8 @@ const prepareAST = (code) => {
   ast.program.body = functionDeclarationsFirst(ast.program.body);
   return transform(ast,
     [importVisitor, exportVisitor, superVisitor, staticBlockVisitor,
-      objectVisitor, classVisitor, awaitVisitor, varVisitor]);
+      objectVisitor, classVisitor,
+      awaitVisitor, varVisitor, functionVisitor]);
 };
 
 const prepareCode = (code) => {
