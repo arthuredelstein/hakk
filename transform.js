@@ -461,10 +461,15 @@ const handleFunctionExpression = (path) => {
     return;
   }
   const name = path.parentPath.node.id.name;
+  if (grandparentPath.node._dontWrap) {
+    return;
+  }
   const implName = name + "_hakk_";
   path.parentPath.node.id.name = implName;
   const wrapperAST = template.ast(
     `var ${name} = (...args) => ${implName}(...args);`);
+  wrapperAST._dontWrap = true;
+  copyLocation(path.parentPath.node, wrapperAST.declarations[0]);
   grandparentPath.insertAfter(wrapperAST);
 };
 
@@ -478,7 +483,12 @@ const functionVisitor = {
     enter (path) {
       handleFunctionExpression(path);
     }
-  }
+  },
+  ArrowFunctionExpression: {
+    enter (path) {
+      handleFunctionExpression(path);
+    }
+  },
 };
 
 const superVisitor = {
