@@ -748,7 +748,7 @@ const prepareAST = (code) => {
   return transform(ast,
     [importVisitor, exportVisitor, superVisitor, staticBlockVisitor,
       objectVisitor, classVisitor,
-      awaitVisitor, varVisitor, functionVisitor]);
+      awaitVisitor, functionVisitor, varVisitor]);
 };
 
 const prepareCode = (code) => {
