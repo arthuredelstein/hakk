@@ -39,8 +39,6 @@ const scriptToInject = `
   </script>
 `;
 
-console.log("about to create new WebSocketServer")
-
 var lastRequest;
 
 const respond = async (req, res) => {
@@ -69,11 +67,10 @@ const respond = async (req, res) => {
 };
 
 const webEvaluator = () => {
-
   const server = http.createServer((...args) => respond(...args));
-
   server.listen(HTTP_PORT);
 
+  console.log("about to create new WebSocketServer")
   const wss = new WebSocketServer({
     port: WEBSOCKET_PORT
   });
