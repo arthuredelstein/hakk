@@ -23,9 +23,13 @@ testTransform('let x = await Promise.resolve(2);', 'var x; x = await Promise.res
 
 testTransform('const x = await Promise.resolve(3);', 'var x; x = await Promise.resolve(3);');
 
-testTransform('const f = async() => { await Promise.resolve(4); }', 'var f = async () => { await Promise.resolve(4); };');
+testTransform('const f = async() => { await Promise.resolve(4); }',
+  `var f_hakk_ = async () => { await Promise.resolve(4); };
+  var f = (...args) => f_hakk_(...args);`);
 
-testTransform('const f = async() => { var y = await Promise.resolve(4); }', 'var f = async () => { var y = await Promise.resolve(4); };');
+testTransform('const f = async() => { var y = await Promise.resolve(4); }',
+  `var f_hakk_ = async () => { var y = await Promise.resolve(4); };
+  var f = (...args) => f_hakk_(...args);`);
 
 // ## class declarations and expressions
 
@@ -153,7 +157,8 @@ testTransform('export const name1 = 1, name2 = 2;',
    module.exports.name2 = name2;`);
 
 testTransform('export function functionName() { /* … */ }',
-  `var functionName = function functionName() {/* … */};
+  `var functionName_hakk_ = function functionName() {/* … */};
+  var functionName = (...args) => functionName_hakk_(...args);
   module.exports.functionName = functionName;`);
 
 testTransform('export class ClassName { /* … */ }',
@@ -161,7 +166,8 @@ testTransform('export class ClassName { /* … */ }',
   module.exports.ClassName = ClassName;`);
 
 testTransform('export function* generatorFunctionName() { /* … */ }',
-  `var generatorFunctionName = function* generatorFunctionName() {/* … */};
+  `var generatorFunctionName_hakk_ = function* generatorFunctionName() {/* … */};
+  var generatorFunctionName  = (...args) => generatorFunctionName_hakk_(...args);
   module.exports.generatorFunctionName = generatorFunctionName;`);
 
 testTransform('export const { name1, name2: bar } = o;',

@@ -19,13 +19,26 @@ const rawStackLineRegex = /\((.+?)\|([a-f,0-9]+):(\d+):(\d+)\)/;
 const reformatStack = (stack) => {
   const lines = stack.split('\n');
   const newLines = [];
-  for (const line of lines) {
+  let pendingLine = undefined;
+  for (let line of lines) {
     if (line.includes('hakk/evaluator.js') && line.includes('<anonymous>')) {
       newLines.push('    at hakk repl input');
       break;
     }
     if (line.includes('hakk/evaluator.js') && line.includes('at generator')) {
       break;
+    }
+    // Collapse the stack lines for wrapper functions.
+    if (pendingLine !== undefined) {
+      const [pendingFragment] = pendingLine.match(rawStackLineRegex);
+      const [lineFragment] = line.match(rawStackLineRegex);
+      line = line.replace(lineFragment, pendingFragment);
+      pendingLine = undefined;
+    }
+    // We have a stack line for a wrapper function.
+    if (line.includes('_hakk_')) {
+      pendingLine = line;
+      continue;
     }
     try {
       const [fragment, path, hash, lineNo, column] = line.match(rawStackLineRegex);
