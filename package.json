@@ -1,6 +1,6 @@
 {
   "name": "hakk",
-  "version": "0.0.24-alpha",
+  "version": "0.0.25-alpha",
   "description": "Interactive programming for Node.js. Speed up your JavaScript development!",
   "main": "index.js",
   "scripts": {
@@ -42,6 +42,7 @@
     "bin.js",
     "errors.js",
     "evaluator.js",
+    "html.js",
     "index.js",
     "LICENSE",
     "modules.js",
