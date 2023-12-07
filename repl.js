@@ -128,7 +128,8 @@ class Repl {
     const originalCompleter = this.replServer_.completer;
     this.replServer_.completer = (text, cb) => {
       originalCompleter(text, (error, [completions, stub]) => {
-        const vars = moduleManager.getVars(this.modulePathManager_.current());
+        const vars = moduleManager.getVars(this.modulePathManager_
+                                  .current()).filter(v => !v.endsWith('_hakk_'));
         completions.push('', ...vars.filter(v => caselessStartsWith(v, stub)));
         cb(error, [completions, stub ?? '']);
       });
