@@ -1,6 +1,6 @@
 {
   "name": "hakk",
-  "version": "0.0.25-alpha",
+  "version": "0.0.26-alpha",
   "description": "Interactive programming for Node.js. Speed up your JavaScript development!",
   "main": "index.js",
   "scripts": {
