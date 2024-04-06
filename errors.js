@@ -19,7 +19,7 @@ const rawStackLineRegex = /\((.+?)\|([a-f,0-9]+):(\d+):(\d+)\)/;
 const reformatStack = (stack) => {
   const lines = stack.split('\n');
   const newLines = [];
-  let pendingLine = undefined;
+  let pendingLine;
   for (let line of lines) {
     if (line.includes('hakk/evaluator.js') && line.includes('<anonymous>')) {
       newLines.push('    at hakk repl input');

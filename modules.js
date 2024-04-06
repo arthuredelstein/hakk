@@ -76,22 +76,22 @@ class Module {
     __import.meta = { url: url.pathToFileURL(this.filePath).href };
     const require = (path) => this.require(path);
     require.resolve = (path) => originalResolveFilename(path, this.dirPath);
-    this.eval = isWeb ?
-      webEvaluator(
+    this.eval = isWeb
+      ? webEvaluator(
         this.exports,
         require,
         this,
         this.filePath,
         this.dirPath,
-        __import) :
-      scopedEvaluator(
+        __import)
+      : scopedEvaluator(
         this.exports,
         require,
         this,
         this.filePath,
         this.dirPath,
         __import);
-      const update = this.isAsync
+    const update = this.isAsync
       ? () => this.updateFileAsync()
       : () => this.updateFileSync();
     watchForFileChanges(this.filePath, 100, () => {
@@ -102,7 +102,7 @@ class Module {
 
   require (requirePath) {
     const fullRequirePath = originalResolveFilename(requirePath, this.dirPath);
-    if (isLocalPath(requirePath) && !requirePath.endsWith(".json")) {
+    if (isLocalPath(requirePath) && !requirePath.endsWith('.json')) {
       const module = this.moduleManager_.getModuleSync(fullRequirePath);
       module.addDependingModule(this);
       return module.exports;
@@ -122,7 +122,7 @@ class Module {
     }
   }
 
-  async evalAsync({code, sourceURL, isAsync}) {
+  async evalAsync ({ code, sourceURL, isAsync }) {
     if (isAsync) {
       await this.eval({ code: `(async () => { ${code}\n })();`, sourceURL });
     } else {
@@ -131,7 +131,7 @@ class Module {
   }
 
   getLatestFragments () {
-    const contents = this.isWeb ? "" : fs.readFileSync(this.filePath, { encoding: 'utf8' }).toString();
+    const contents = this.isWeb ? '' : fs.readFileSync(this.filePath, { encoding: 'utf8' }).toString();
     const ast = prepareAST(contents);
     const body = ast.program ? ast.program.body : [];
     const { latestNodes, fragments, offsetsMap } = changedNodesToCodeFragments(
@@ -166,7 +166,7 @@ class Module {
         if (node._topLevelImport) {
           const fullImportPath = originalResolveFilename(node._topLevelImport, this.dirPath);
           if (fullImportPath === filePath) {
-            await this.evalAsync({code, sourceURL: filePath, isAsync: true });
+            await this.evalAsync({ code, sourceURL: filePath, isAsync: true });
           }
         }
       }
@@ -230,7 +230,7 @@ class Module {
   async updateFileAsync () {
     try {
       for (const { code, isAsync, addedOrChangedVars, deletedVars, tracker } of this.getLatestFragments()) {
-        await this.evalAsync({code, sourceURL: tracker, isAsync});
+        await this.evalAsync({ code, sourceURL: tracker, isAsync });
         this.handleVarUpdates({ addedOrChangedVars, deletedVars });
       }
     } catch (e) {
@@ -249,8 +249,6 @@ class ModuleManager {
     Error.stackTraceLimit = Infinity;
     errors.setupStackTraces();
   }
-
-  
 
   static async create (rootModulePath, isWeb) {
     const rootModuleFullPath = path.resolve(rootModulePath);

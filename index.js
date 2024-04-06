@@ -5,8 +5,8 @@ const pjson = require('./package.json');
 const { openLocalfileInBrowser } = require('./html.js');
 
 const run = async (filename, flags) => {
-  if (flags['version']) {
-    console.log("v" + pjson.version);
+  if (flags.version) {
+    console.log('v' + pjson.version);
     return;
   }
   if (filename === undefined) {
@@ -15,7 +15,7 @@ const run = async (filename, flags) => {
     return;
   }
   const filenameFullPath = path.resolve(filename);
-  const isWeb = filenameFullPath.endsWith(".html") || filenameFullPath.endsWith(".htm");
+  const isWeb = filenameFullPath.endsWith('.html') || filenameFullPath.endsWith('.htm');
   if (isWeb) {
     await openLocalfileInBrowser(filenameFullPath);
   }

@@ -2,7 +2,7 @@ const http = require('node:http');
 const { WebSocket, WebSocketServer } = require('ws');
 const { promisify } = require('node:util');
 const execAsync = promisify(require('node:child_process').exec);
-const fs = require('node:fs/promises')
+const fs = require('node:fs/promises');
 const path = require('node:path');
 const { Channel } = require('queueable');
 
@@ -18,7 +18,7 @@ const scriptToInject = `
   <script>
     var module = {};
   </script>
-  <script src="${path.join(__dirname, "evaluator.js")}"></script>
+  <script src="${path.join(__dirname, 'evaluator.js')}"></script>
   <script>
     const evalFunction = module.exports.scopedEvaluator();
     const socket = new WebSocket("ws://localhost:${WEBSOCKET_PORT}/ws-hakk");
@@ -39,18 +39,18 @@ const scriptToInject = `
   </script>
 `;
 
-var lastRequest;
+let lastRequest;
 
 const respond = async (req, res) => {
   console.log(req.url, req.rawHeaders);
   lastRequest = req;
   const pathname = req.url;
-  let contentType = "";
-  if (pathname.endsWith("html") || pathname.endsWith("htm")) {
-    contentType = "text/html";
-  } else if (pathname.endsWith("js") || pathname.endsWith("jsm")) {
+  let contentType = '';
+  if (pathname.endsWith('html') || pathname.endsWith('htm')) {
+    contentType = 'text/html';
+  } else if (pathname.endsWith('js') || pathname.endsWith('jsm')) {
     contentType = 'application/js';
-  } else if (pathname.endsWith("json")) {
+  } else if (pathname.endsWith('json')) {
     contentType = 'application/json';
   }
   try {
@@ -62,7 +62,7 @@ const respond = async (req, res) => {
     res.end(fileContents);
   } catch (e) {
     res.writeHead(404);
-    res.end("");
+    res.end('');
   }
 };
 
@@ -70,7 +70,7 @@ const webEvaluator = () => {
   const server = http.createServer((...args) => respond(...args));
   server.listen(HTTP_PORT);
 
-  console.log("about to create new WebSocketServer")
+  console.log('about to create new WebSocketServer');
   const wss = new WebSocketServer({
     port: WEBSOCKET_PORT
   });
@@ -80,8 +80,8 @@ const webEvaluator = () => {
       if (client.readyState = WebSocket.OPEN) {
         client.send(JSON.stringify(message));
       }
-    })
-  }
+    });
+  };
 
   const incomingMessages = new Channel();
 
@@ -96,7 +96,7 @@ const webEvaluator = () => {
       data = message.value;
     } while (data.id !== id);
     return data;
-  }
+  };
 
   wss.on('connection', (ws) => {
     ws.on('error', console.error);
@@ -109,7 +109,7 @@ const webEvaluator = () => {
     ++counter;
     const id = counter.toString();
     const receiveMessagePromise = receiveMessage(id);
-    broadcastMessage({ command: "eval", code, sourceURL, id });
+    broadcastMessage({ command: 'eval', code, sourceURL, id });
     const message = await receiveMessagePromise;
     const { result, error } = message;
     if (error) {
@@ -120,6 +120,6 @@ const webEvaluator = () => {
   };
 
   return evaluate;
-}
+};
 
 module.exports = { openLocalfileInBrowser, webEvaluator };
