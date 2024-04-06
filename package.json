@@ -10,7 +10,7 @@
   "license": "MIT",
   "dependencies": {
     "@babel/core": "^7.20.7",
-    "@babel/plugin-proposal-class-static-block": "^7.20.7",
+    "@babel/plugin-transform-class-static-block": "^7.24.4",
     "minimist": "^1.2.7",
     "queueable": "^5.3.1",
     "ws": "^8.13.0"

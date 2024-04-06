@@ -3,7 +3,7 @@ const parser = require('@babel/parser');
 const template = require('@babel/template').default;
 const traverse = require('@babel/traverse').default;
 const types = require('@babel/types');
-const staticBlockPlugin = require('@babel/plugin-proposal-class-static-block').default;
+const staticBlockPlugin = require('@babel/plugin-transform-class-static-block').default;
 const { sha256 } = require('./utils.js');
 
 // TODO: const hoistVariables = require('@babel/helper-hoist-variables').default;
@@ -431,7 +431,7 @@ const classVisitor = {
     enter (path) {
       handleClassDeclaration(path);
     }
-  },
+  }
 };
 
 const handleFunctionDeclaration = (path) => {
@@ -464,7 +464,7 @@ const handleFunctionExpression = (path) => {
   if (grandparentPath.node._dontWrap) {
     return;
   }
-  const implName = name + "_hakk_";
+  const implName = name + '_hakk_';
   path.parentPath.node.id.name = implName;
   const wrapperAST = template.ast(
     `var ${name} = (...args) => ${implName}(...args);`);
@@ -488,7 +488,7 @@ const functionVisitor = {
     enter (path) {
       handleFunctionExpression(path);
     }
-  },
+  }
 };
 
 const superVisitor = {
@@ -502,7 +502,9 @@ const superVisitor = {
   }
 };
 
-const staticBlockVisitor = staticBlockPlugin({ types, template, assertVersion: () => undefined }).visitor;
+const staticBlockVisitor = staticBlockPlugin({
+  types, template, assertVersion: () => undefined, version: [8]
+}).visitor;
 
 const handleObjectExpression = (path) => {
   if (!isTopLevelDeclaredObject(path)) {
@@ -516,7 +518,8 @@ const handleObjectExpression = (path) => {
     path.node.properties = [];
   } else {
     identifierNames = findNestedIdentifierValues(path.parentPath.node.id);
-    const declarator = template.ast(`var ${identifierNames.join(', ')};`);    path.parentPath.node.init = undefined;
+    const declarator = template.ast(`var ${identifierNames.join(', ')};`);
+    path.parentPath.node.init = undefined;
     path.parentPath.parentPath.replaceWith(declarator);
   }
   for (const property of originalProperties) {
@@ -570,7 +573,7 @@ const handleObjectExpression = (path) => {
           expressionRight.body = property.body;
           copyLocation(property.body, ast.expression);
           copyLocation(property.key, ast.expression.left);
-          }
+        }
       } else {
         throw new Error(`Unexpected key type '${key.type}'.`);
       }
