@@ -31,8 +31,12 @@ const reformatStack = (stack) => {
     // Collapse the stack lines for wrapper functions.
     if (pendingLine !== undefined) {
       const [pendingFragment] = pendingLine.match(rawStackLineRegex);
-      const [lineFragment] = line.match(rawStackLineRegex);
-      line = line.replace(lineFragment, pendingFragment);
+      try {
+        const [lineFragment] = line.match(rawStackLineRegex);
+        line = line.replace(lineFragment, pendingFragment);
+      } catch (e) {
+       // Ignore this error
+      }
       pendingLine = undefined;
     }
     // We have a stack line for a wrapper function.
