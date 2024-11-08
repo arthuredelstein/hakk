@@ -30,8 +30,8 @@ const reformatStack = (stack) => {
     }
     // Collapse the stack lines for wrapper functions.
     if (pendingLine !== undefined) {
-      const [pendingFragment] = pendingLine.match(rawStackLineRegex);
       try {
+        const [pendingFragment] = pendingLine.match(rawStackLineRegex);
         const [lineFragment] = line.match(rawStackLineRegex);
         line = line.replace(lineFragment, pendingFragment);
       } catch (e) {
