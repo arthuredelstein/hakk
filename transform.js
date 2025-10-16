@@ -503,7 +503,11 @@ const superVisitor = {
 };
 
 const staticBlockVisitor = staticBlockPlugin({
-  types, template, assertVersion: () => undefined, version: [8]
+  types,
+  template,
+  traverse,
+  assertVersion: () => undefined,
+  version: [8]
 }).visitor;
 
 const handleObjectExpression = (path) => {
