@@ -705,6 +705,208 @@ testTransform(
   };
   var genArrow = (...args) => genArrow_hakk_(...args);`);
 
+// ## Private Field Access
+
+testTransform(
+  'convert private field access in instance method',
+  `class A {
+    #field = 42;
+    getValue() {
+      return this.#field;
+    }
+  }`,
+  `var A = class A {};
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(A.prototype, "_PRIVATE_field", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })(42);
+  A.prototype.getValue = function () {
+    return this._PRIVATE_field;
+  };`);
+
+testTransform(
+  'convert private field access in static method',
+  `class A {
+    static #field = 100;
+    static getValue() {
+      return this.#field;
+    }
+  }`,
+  `var A = class A {};
+  A._PRIVATE_field = 100;
+  A.getValue = function () {
+    return this._PRIVATE_field;
+  };`);
+
+testTransform(
+  'convert private field access with assignment',
+  `class A {
+    #field = 0;
+    increment() {
+      this.#field++;
+    }
+  }`,
+  `var A = class A {};
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(A.prototype, "_PRIVATE_field", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })(0);
+  A.prototype.increment = function () {
+    this._PRIVATE_field++;
+  };`);
+
+testTransform(
+  'convert private field access in getter',
+  `class A {
+    #field = 'secret';
+    get secret() {
+      return this.#field;
+    }
+  }`,
+  `var A = class A {};
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(A.prototype, "_PRIVATE_field", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })('secret');
+  Object.defineProperty(A.prototype, "secret", {
+    get: function () {
+      return this._PRIVATE_field;
+    },
+    configurable: true
+  });`);
+
+testTransform(
+  'convert private field access in setter',
+  `class A {
+    #field = null;
+    set value(val) {
+      this.#field = val;
+    }
+  }`,
+  `var A = class A {};
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(A.prototype, "_PRIVATE_field", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })(null);
+  Object.defineProperty(A.prototype, "value", {
+    set: function (val) {
+      this._PRIVATE_field = val;
+    },
+    configurable: true
+  });`);
+
+testTransform(
+  'convert private field access in constructor',
+  `class A {
+    #field = 10;
+    constructor(value) {
+      this.#field = value;
+    }
+  }`,
+  `var A = class A {
+    constructor(value) {
+      this._PRIVATE_field = value;
+    }
+  };
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(A.prototype, "_PRIVATE_field", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })(10);`);
+
+testTransform(
+  'convert private field access with complex expressions',
+  `class A {
+    #field = [];
+    addItem(item) {
+      this.#field.push(item);
+    }
+    get length() {
+      return this.#field.length;
+    }
+  }`,
+  `var A = class A {};
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(A.prototype, "_PRIVATE_field", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })([]);
+  A.prototype.addItem = function (item) {
+    this._PRIVATE_field.push(item);
+  };
+  Object.defineProperty(A.prototype, "length", {
+    get: function () {
+      return this._PRIVATE_field.length;
+    },
+    configurable: true
+  });`);
+
+testTransform(
+  'convert private field access in static block',
+  `class A {
+    static #field = 0;
+    static {
+      this.#field = 42;
+    }
+  }`,
+  `var A = class A {};
+  A._PRIVATE_field = 0;
+  (function () {
+    this._PRIVATE_field = 42;
+  }).call(A);`);
+
+testTransform(
+  'convert private field access with multiple private fields',
+  `class A {
+    #field1 = 1;
+    #field2 = 2;
+    getSum() {
+      return this.#field1 + this.#field2;
+    }
+  }`,
+  `var A = class A {};
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(A.prototype, "_PRIVATE_field1", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })(1);
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(A.prototype, "_PRIVATE_field2", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })(2);
+  A.prototype.getSum = function () {
+    return this._PRIVATE_field1 + this._PRIVATE_field2;
+  };`);
+
 // ## `import()` calls
 
 testTransform('convert import statement to await import',
