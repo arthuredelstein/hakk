@@ -390,6 +390,75 @@ testTransform(
     configurable: true
   });`);
 
+// ## function types
+
+testTransform(
+  'convert generator function declaration to function expression',
+  `function* generator() {
+    yield 1;
+    yield 2;
+  }`,
+  `var generator_hakk_ = function* generator() {
+    yield 1;
+    yield 2;
+  };
+  var generator = (...args) => generator_hakk_(...args);`);
+
+testTransform(
+  'convert async generator function declaration to function expression',
+  `async function* asyncGenerator() {
+    yield await Promise.resolve(1);
+  }`,
+  `var asyncGenerator_hakk_ = async function* asyncGenerator() {
+    yield await Promise.resolve(1);
+  };
+  var asyncGenerator = (...args) => asyncGenerator_hakk_(...args);`);
+
+testTransform(
+  'convert arrow function with different parameter patterns',
+  `const noParams = () => 'hello';
+  const singleParam = x => x * 2;
+  const multipleParams = (a, b) => a + b;
+  const restParams = (...args) => args.length;`,
+  `var noParams_hakk_ = () => 'hello';
+  var noParams = (...args) => noParams_hakk_(...args);
+  var singleParam_hakk_ = x => x * 2;
+  var singleParam = (...args) => singleParam_hakk_(...args);
+  var multipleParams_hakk_ = (a, b) => a + b;
+  var multipleParams = (...args) => multipleParams_hakk_(...args);
+  var restParams_hakk_ = (...args) => args.length;
+  var restParams = (...args) => restParams_hakk_(...args);`);
+
+testTransform(
+  'convert function expression with name to wrapper',
+  `const namedFunc = function myFunction() {
+    return 'named';
+  };`,
+  `var namedFunc_hakk_ = function myFunction() {
+    return 'named';
+  };
+  var namedFunc = (...args) => namedFunc_hakk_(...args);`);
+
+testTransform(
+  'convert async arrow function to wrapper',
+  `const asyncArrow = async () => {
+    return await Promise.resolve('async');
+  };`,
+  `var asyncArrow_hakk_ = async () => {
+    return await Promise.resolve('async');
+  };
+  var asyncArrow = (...args) => asyncArrow_hakk_(...args);`);
+
+testTransform(
+  'convert generator arrow function to wrapper',
+  `const genArrow = function* () {
+    yield 1;
+  };`,
+  `var genArrow_hakk_ = function* () {
+    yield 1;
+  };
+  var genArrow = (...args) => genArrow_hakk_(...args);`);
+
 // ## `import()` calls
 
 testTransform('convert import statement to await import',
