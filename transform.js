@@ -366,9 +366,6 @@ const nodesForClass = ({ className, classBodyNodes }) => {
   outputNodes.forEach(function (outputNode) {
     outputNode._parentLabel = className;
   });
-  outputNodes.forEach(function (outputNode) {
-    console.log('outputNode', generate(outputNode).code);
-  });
   return { retainedNodes, outputNodes };
 };
 
