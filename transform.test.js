@@ -1162,44 +1162,44 @@ testTransform("`import defaultExport from 'module-name'` to await import",
   "import defaultExport from 'module-name';",
   "var defaultExport; ({ default: defaultExport } = await __import('module-name'));");
 
-testTransform("` import * as name from 'module-name'` to await import",
+testTransform("`import * as name from 'module-name'` to await import",
   "import * as name from 'module-name';",
   "var name; name = await __import('module-name');");
 
-testTransform("` import { export1 } from 'module-name'` to await import",
+testTransform("`import { export1 } from 'module-name'` to await import",
   "import { export1 } from 'module-name';",
   "var export1; ({ export1 } = await __import('module-name'));");
 
-testTransform("` import { export1 as alias1 } from 'module-name'` to await import",
+testTransform("`import { export1 as alias1 } from 'module-name'` to await import",
   "import { export1 as alias1 } from 'module-name';",
   "var alias1; ({ export1: alias1 } = await __import('module-name'));");
 
-testTransform("` import { default as alias } from 'module-name'` to await import",
+testTransform("`import { default as alias } from 'module-name'` to await import",
   "import { default as alias } from 'module-name';",
   "var alias; ({ default: alias } = await __import('module-name'));");
 
-testTransform("` import { export1, export2 } from 'module-name'` to await import",
+testTransform("`import { export1, export2 } from 'module-name'` to await import",
   "import { export1, export2 } from 'module-name';",
   "var export1; var export2; ({ export1, export2 } = await __import('module-name'));");
 
-testTransform("` import { export1, export2 as alias2 } from 'module-name'` to await import",
+testTransform("`import { export1, export2 as alias2 } from 'module-name'` to await import",
   "import { export1, export2 as alias2 } from 'module-name';",
   "var export1; var alias2; ({ export1, export2: alias2 } = await __import('module-name'));");
 
-testTransform("` import { 'string name' as alias } from 'module-name'` to await import",
+testTransform("`import { 'string name' as alias } from 'module-name'` to await import",
   "import { 'string name' as alias } from 'module-name';",
   "var alias; ({ 'string name': alias } = await __import('module-name'));");
 
-testTransform("` import defaultExport, { export1 } from 'module-name'` to await import",
+testTransform("`import defaultExport, { export1 } from 'module-name'` to await import",
   "import defaultExport, { export1 } from 'module-name';",
   "var defaultExport; var export1; ({ default: defaultExport, export1 } = await __import('module-name'));");
 
-testTransform("` import defaultExport, * as name from 'module-name'` to await import",
+testTransform("`import defaultExport, * as name from 'module-name'` to await import",
   "import defaultExport, * as name from 'module-name';",
   `var name; name = await __import('module-name');
   var { default: defaultExport } = name;`);
 
-testTransform("` import 'module-name'` to await import",
+testTransform("`import 'module-name'` to await import",
   "import 'module-name';",
   "await __import('module-name');");
 
