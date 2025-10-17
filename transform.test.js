@@ -117,6 +117,28 @@ testTransform(
     this.count = 42;
   }).call(Counter);`);
 
+testTransform(
+  `class Config {
+    static a = 1;
+    static b = 2;
+    static c = 3;
+    static {
+      this.a = 4;
+      this.b = 5;
+      this.c = 6;
+    }
+    static d = 7;
+  }`,
+  `var Config = class Config {};
+  Config.a = 1;
+  Config.b = 2;
+  Config.c = 3;
+  (function () {
+    this.a = 4;
+    this.b = 5;
+    this.c = 6;
+  }).call(Config);
+  Config.d = 7;`);
 // ## `import()` calls
 
 testTransform("var {test} = await import('./test.js');",
