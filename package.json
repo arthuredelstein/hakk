@@ -7,7 +7,12 @@
     "test": "npx jest",
     "lint": "npx semistandard",
     "test:ci": "npm run lint && npm test",
-    "test:local": "./.github/scripts/test-local.sh"
+    "test:local": "./.github/scripts/test-local.sh",
+    "prepare": "husky install",
+    "pre-push": "npm run test:ci",
+    "setup-hooks": "./scripts/setup-hooks.sh",
+    "disable-hooks": "mv .husky/pre-push .husky/pre-push.disabled 2>/dev/null || true",
+    "enable-hooks": "mv .husky/pre-push.disabled .husky/pre-push 2>/dev/null || true"
   },
   "author": "Arthur Edelstein",
   "license": "MIT",

@@ -1,0 +1,44 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🧪 Running smart pre-push tests..."
+echo "================================"
+
+# Get the list of changed files
+CHANGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|ts|jsx|tsx)$' || true)
+
+if [ -z "$CHANGED_FILES" ]; then
+    echo "ℹ️  No JavaScript/TypeScript files changed. Skipping tests."
+    echo "================================"
+    exit 0
+fi
+
+echo "📁 Changed files:"
+echo "$CHANGED_FILES"
+echo ""
+
+# Run linting on changed files
+echo "🔍 Running linting on changed files..."
+echo "$CHANGED_FILES" | xargs npx semistandard
+
+if [ $? -ne 0 ]; then
+    echo "❌ Linting failed! Push aborted."
+    echo "💡 Fix the linting errors and try again."
+    echo "================================"
+    exit 1
+fi
+
+# Run all tests (since tests might be affected by any change)
+echo "🧪 Running all tests..."
+npm test
+
+if [ $? -eq 0 ]; then
+    echo "✅ All tests passed! Proceeding with push..."
+    echo "================================"
+    exit 0
+else
+    echo "❌ Tests failed! Push aborted."
+    echo "💡 Fix the failing tests and try again."
+    echo "================================"
+    exit 1
+fi
