@@ -595,7 +595,7 @@ testTransform(
   `const x = 1, y = 2;
   const obj = { x, y };`,
   `var x = 1;
-  var y = 2;
+   var y = 2;
   var obj = {};
   obj.x = x;
   obj.y = y;`);
@@ -905,6 +905,242 @@ testTransform(
   })(2);
   A.prototype.getSum = function () {
     return this._PRIVATE_field1 + this._PRIVATE_field2;
+  };`);
+
+// ## Object Literal Edge Cases
+
+testTransform(
+  'convert nested object with methods (nested objects not transformed)',
+  `const config = {
+    database: {
+      host: 'localhost',
+      connect() {
+        return this.host;
+      }
+    }
+  };`,
+  `var config = {};
+  config.database = {
+    host: 'localhost',
+    connect() {
+      return this.host;
+    }
+  };`);
+
+testTransform(
+  'convert object with method referencing this',
+  `const counter = {
+    value: 0,
+    increment() {
+      this.value++;
+      return this.value;
+    },
+    reset() {
+      this.value = 0;
+    }
+  };`,
+  `var counter = {};
+  counter.value = 0;
+  counter.increment = function () {
+    this.value++;
+    return this.value;
+  };
+  counter.reset = function () {
+    this.value = 0;
+  };`);
+
+testTransform(
+  'convert object with complex computed properties (now supported)',
+  `const key1 = 'prop1';
+  const key2 = 'prop2';
+  const obj = {
+    [key1 + key2]: 'combined',
+    [key1.toUpperCase()]: 'uppercase',
+    ['static_' + key2]: 'static_combined'
+  };`,
+  `var key1 = 'prop1';
+  var key2 = 'prop2';
+  var obj = {};
+  obj[key1 + key2] = 'combined';
+  obj[key1.toUpperCase()] = 'uppercase';
+  obj['static_' + key2] = 'static_combined';`);
+
+testTransform(
+  'convert object with mixed property types and methods (Symbol.iterator now supported)',
+  `const api = {
+    baseUrl: 'https://api.example.com',
+    version: 1,
+    get endpoints() {
+      return this._endpoints || [];
+    },
+    set endpoints(value) {
+      this._endpoints = value;
+    },
+    async fetch(path) {
+      return fetch(this.baseUrl + path);
+    }
+  };`,
+  `var api = {};
+  api.baseUrl = 'https://api.example.com';
+  api.version = 1;
+  Object.defineProperty(api, "endpoints", {
+    get: function () {
+      return this._endpoints || [];
+    },
+    configurable: true
+  });
+  Object.defineProperty(api, "endpoints", {
+    set: function (value) {
+      this._endpoints = value;
+    },
+    configurable: true
+  });
+  api.fetch = async function (path) {
+    return fetch(this.baseUrl + path);
+  };`);
+
+testTransform(
+  'convert object with nested computed properties (nested objects not transformed)',
+  `const key = 'nested';
+  const obj = {
+    [key]: {
+      [key + '_inner']: 'value',
+      method() {
+        return this[key + '_inner'];
+      }
+    }
+  };`,
+  `var key = 'nested';
+  var obj = {};
+  obj[key] = {
+    [key + '_inner']: 'value',
+    method() {
+      return this[key + '_inner'];
+    }
+  };`);
+
+testTransform(
+  'convert object with method calling other methods',
+  `const calculator = {
+    add(a, b) {
+      return a + b;
+    },
+    subtract(a, b) {
+      return a - b;
+    },
+    calculate(operation, a, b) {
+      return this[operation](a, b);
+    }
+  };`,
+  `var calculator = {};
+  calculator.add = function (a, b) {
+    return a + b;
+  };
+  calculator.subtract = function (a, b) {
+    return a - b;
+  };
+  calculator.calculate = function (operation, a, b) {
+    return this[operation](a, b);
+  };`);
+
+testTransform(
+  'convert object with getter and setter using private-like pattern',
+  `const store = {
+    _data: {},
+    get(key) {
+      return this._data[key];
+    },
+    set(key, value) {
+      this._data[key] = value;
+    },
+    has(key) {
+      return key in this._data;
+    }
+  };`,
+  `var store = {};
+  store._data = {};
+  store.get = function (key) {
+    return this._data[key];
+  };
+  store.set = function (key, value) {
+    this._data[key] = value;
+  };
+  store.has = function (key) {
+    return key in this._data;
+  };`);
+
+testTransform(
+  'convert object with async methods and complex expressions',
+  `const service = {
+    timeout: 5000,
+    async request(url, options = {}) {
+      const config = {
+        ...options,
+        timeout: this.timeout
+      };
+      return fetch(url, config);
+    },
+    async retry(url, maxRetries = 3) {
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          return await this.request(url);
+        } catch (error) {
+          if (i === maxRetries - 1) throw error;
+        }
+      }
+    }
+  };`,
+  `var service = {};
+  service.timeout = 5000;
+  service.request = async function (url, options = {}) {
+    const config = {
+      ...options,
+      timeout: this.timeout
+    };
+    return fetch(url, config);
+  };
+  service.retry = async function (url, maxRetries = 3) {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await this.request(url);
+      } catch (error) {
+        if (i === maxRetries - 1) throw error;
+      }
+    }
+  };`);
+
+testTransform(
+  'convert object with generator methods',
+  `const sequence = {
+    start: 0,
+    step: 1,
+    *generate(count) {
+      for (let i = 0; i < count; i++) {
+        yield this.start + (i * this.step);
+      }
+    },
+    *infinite() {
+      let current = this.start;
+      while (true) {
+        yield current;
+        current += this.step;
+      }
+    }
+  };`,
+  `var sequence = {};
+  sequence.start = 0;
+  sequence.step = 1;
+  sequence.generate = function* (count) {
+    for (let i = 0; i < count; i++) {
+      yield this.start + i * this.step;
+    }
+  };
+  sequence.infinite = function* () {
+    let current = this.start;
+    while (true) {
+      yield current;
+      current += this.step;
+    }
   };`);
 
 // ## `import()` calls

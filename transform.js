@@ -550,86 +550,70 @@ const handleObjectExpression = (path) => {
     let ast;
     let keyExpression;
     if (types.isObjectProperty(property)) {
-      if (types.isIdentifier(key)) {
-        keyExpression = key.name;
-        if (name === undefined) {
-          if (identifierNames.includes(key.name)) {
-            ast = template.ast(`${key.name} = undefined;`);
-          }
+      // Use generate() for all key types - handles Identifier, StringLiteral, MemberExpression, BinaryExpression, etc.
+      keyExpression = generate(key).code;
+      if (name === undefined) {
+        if (identifierNames.includes(keyExpression)) {
+          ast = template.ast(`${keyExpression} = undefined;`);
+        }
+      } else {
+        // Use bracket notation for all computed properties, dot notation for simple identifiers
+        if (property.computed || !types.isIdentifier(key)) {
+          ast = template.ast(`${name}[${keyExpression}] = undefined;`);
         } else {
-          // Handle computed properties
-          if (property.computed) {
-            ast = template.ast(`${name}[${key.name}] = undefined;`);
-          } else {
-            ast = template.ast(`${name}.${key.name} = undefined;`);
-          }
-        }
-        if (ast) {
-          copyLocation(property, ast);
-        }
-      }
-      if (types.isStringLiteral(key)) {
-        keyExpression = `'${key.value}'`;
-        if (name === undefined) {
-          if (identifierNames.includes(key.value)) {
-            ast = template.ast(`${key.value} = undefined;`);
-          }
-        } else {
-          ast = template.ast(`${name}['${key.value}'] = undefined;`);
-        }
-        if (ast) {
-          copyLocation(property, ast);
+          ast = template.ast(`${name}.${keyExpression} = undefined;`);
         }
       }
       if (ast) {
+        copyLocation(property, ast);
         ast.expression.right = property.value;
         copyLocation(property, ast.expression);
         copyLocation(property.key, ast.expression.left);
       }
     } else if (types.isObjectMethod(property)) {
-      // Handle getters and setters
+      // Use generate() for all key types
+      keyExpression = generate(key).code;
+      
       if (property.kind === 'get' || property.kind === 'set') {
-        if (types.isIdentifier(key)) {
-          keyExpression = key.name;
-          if (name === undefined) {
-            if (identifierNames.includes(key.name)) {
-              ast = template.ast(`Object.defineProperty(${key.name}, "${key.name}", { ${property.kind}: function () { }, configurable: true });`);
-            }
-          } else {
-            ast = template.ast(`Object.defineProperty(${name}, "${key.name}", { ${property.kind}: function () { }, configurable: true });`);
-          }
-          if (ast) {
-            copyLocation(property, ast);
-            const accessor = ast.expression.arguments[2].properties[0].value;
-            accessor.body = property.body;
-            accessor.params = property.params;
+        // Handle getters and setters
+        if (name === undefined) {
+          if (identifierNames.includes(keyExpression)) {
+            ast = template.ast(`Object.defineProperty(${keyExpression}, "${keyExpression}", { ${property.kind}: function () { }, configurable: true });`);
           }
         } else {
-          throw new Error(`Unexpected key type '${key.type}'.`);
+          // For Object.defineProperty, we need the property name as a string literal
+          const propertyName = types.isIdentifier(key) ? `"${key.name}"` : keyExpression;
+          ast = template.ast(`Object.defineProperty(${name}, ${propertyName}, { ${property.kind}: function () { }, configurable: true });`);
+        }
+        if (ast) {
+          copyLocation(property, ast);
+          const accessor = ast.expression.arguments[2].properties[0].value;
+          accessor.body = property.body;
+          accessor.params = property.params;
         }
       } else {
         // Handle regular methods
-        if (types.isIdentifier(key)) {
-          keyExpression = key.name;
-          if (name === undefined) {
-            if (identifierNames.includes(key.name)) {
-              ast = template.ast(`${key.name} = function () { };`);
-            }
-          } else {
-            ast = template.ast(`${name}.${key.name} = function () { };`);
-          }
-          if (ast) {
-            copyLocation(property, ast);
-            const expressionRight = ast.expression.right;
-            expressionRight.params = property.params;
-            expressionRight.async = property.async;
-            expressionRight.generator = property.generator;
-            expressionRight.body = property.body;
-            copyLocation(property.body, ast.expression);
-            copyLocation(property.key, ast.expression.left);
+        if (name === undefined) {
+          if (identifierNames.includes(keyExpression)) {
+            ast = template.ast(`${keyExpression} = function () { };`);
           }
         } else {
-          throw new Error(`Unexpected key type '${key.type}'.`);
+          // Use bracket notation for computed properties, dot notation for simple identifiers
+          if (property.computed || !types.isIdentifier(key)) {
+            ast = template.ast(`${name}[${keyExpression}] = function () { };`);
+          } else {
+            ast = template.ast(`${name}.${keyExpression} = function () { };`);
+          }
+        }
+        if (ast) {
+          copyLocation(property, ast);
+          const expressionRight = ast.expression.right;
+          expressionRight.params = property.params;
+          expressionRight.async = property.async;
+          expressionRight.generator = property.generator;
+          expressionRight.body = property.body;
+          copyLocation(property.body, ast.expression);
+          copyLocation(property.key, ast.expression.left);
         }
       }
     } else {
