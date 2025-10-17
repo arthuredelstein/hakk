@@ -2210,3 +2210,176 @@ testTransform(
   Child.prototype.getParentInstance = function () {
     return Parent.prototype.instanceProp;
   };`);
+
+// ## Variable Declaration Edge Cases
+
+testTransform(
+  'convert multiple const declarations to separate var declarations',
+  'const a = 1, b = 2, c = 3;',
+  `var a = 1;
+var b = 2;
+var c = 3;`);
+
+testTransform(
+  'convert multiple let declarations to separate var declarations',
+  'let x = 1, y = 2, z = 3;',
+  `var x = 1;
+var y = 2;
+var z = 3;`);
+
+testTransform(
+  'convert multiple var declarations to separate var declarations',
+  'var p = 1, q = 2, r = 3;',
+  `var p = 1;
+var q = 2;
+var r = 3;`);
+
+testTransform(
+  'convert object destructuring with simple properties',
+  'const { a, b, c } = obj;',
+  `var {
+  a,
+  b,
+  c
+} = obj;`);
+
+testTransform(
+  'convert array destructuring with simple elements',
+  'let [x, y, z] = array;',
+  'var [x, y, z] = array;');
+
+testTransform(
+  'convert object destructuring with renamed properties',
+  'var { name: userName, age: userAge, id: userId } = person;',
+  `var {
+  name: userName,
+  age: userAge,
+  id: userId
+} = person;`);
+
+testTransform(
+  'convert nested object destructuring',
+  'const { a: { b: { c } } } = nested;',
+  `var {
+  a: {
+    b: {
+      c
+    }
+  }
+} = nested;`);
+
+testTransform(
+  'convert array destructuring with rest operator',
+  'let [first, second, ...rest] = items;',
+  'var [first, second, ...rest] = items;');
+
+testTransform(
+  'convert object destructuring with rest operator',
+  'const { name, age, ...otherProps } = person;',
+  `var {
+  name,
+  age,
+  ...otherProps
+} = person;`);
+
+testTransform(
+  'convert object destructuring with computed properties',
+  'var { [key]: value, [getKey()]: result } = obj;',
+  `var {
+  [key]: value,
+  [getKey()]: result
+} = obj;`);
+
+testTransform(
+  'convert object destructuring with default values',
+  'const { a = 1, b = 2, c = 3 } = obj;',
+  `var {
+  a = 1,
+  b = 2,
+  c = 3
+} = obj;`);
+
+testTransform(
+  'convert array destructuring with default values',
+  'let [x = 0, y = 0, z = 0] = array;',
+  'var [x = 0, y = 0, z = 0] = array;');
+
+testTransform(
+  'convert mixed destructuring with defaults and rest',
+  'var { name = "unknown", age = 0, ...rest } = person;',
+  `var {
+  name = "unknown",
+  age = 0,
+  ...rest
+} = person;`);
+
+testTransform(
+  'convert complex nested destructuring with defaults',
+  'const { user: { name = "guest", settings: { theme = "light" } } } = data;',
+  `var {
+  user: {
+    name = "guest",
+    settings: {
+      theme = "light"
+    }
+  }
+} = data;`);
+
+testTransform(
+  'convert array destructuring with mixed patterns',
+  'let [first, { name, age }, ...others] = items;',
+  `var [first, {
+  name,
+  age
+}, ...others] = items;`);
+
+testTransform(
+  'convert object destructuring with string keys',
+  'const { "string-key": stringValue, \'another-key\': anotherValue } = obj;',
+  `var {
+  "string-key": stringValue,
+  'another-key': anotherValue
+} = obj;`);
+
+testTransform(
+  'convert destructuring with function calls as defaults',
+  'var { name = getName(), age = getAge() } = person;',
+  `var {
+  name = getName(),
+  age = getAge()
+} = person;`);
+
+testTransform(
+  'convert destructuring with complex expressions as defaults',
+  'let { x = a + b, y = c * d } = obj;',
+  `var {
+  x = a + b,
+  y = c * d
+} = obj;`);
+
+testTransform(
+  'convert destructuring with template literals as defaults',
+  // eslint-disable-next-line no-template-curly-in-string
+  'const { message = `Hello ${name}` } = data;',
+  `var {
+  message = \`Hello \${name}\`
+} = data;`);
+
+testTransform(
+  'convert destructuring with array patterns in objects',
+  'var { coordinates: [x, y], dimensions: [width, height] } = shape;',
+  `var {
+  coordinates: [x, y],
+  dimensions: [width, height]
+} = shape;`);
+
+testTransform(
+  'convert destructuring with object patterns in arrays',
+  'let [{ name, age }, { title, content }] = items;',
+  `var [{
+  name,
+  age
+}, {
+  title,
+  content
+}] = items;`);
