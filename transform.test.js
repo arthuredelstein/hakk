@@ -288,6 +288,108 @@ testTransform(
     return 'instance private method';
   };`);
 
+// ## object literals and methods
+
+testTransform(
+  'convert object method declaration to property assignment',
+  `const obj = {
+    method() {
+      return 'hello';
+    }
+  };`,
+  `var obj = {};
+  obj.method = function () {
+    return 'hello';
+  };`);
+
+testTransform(
+  'convert object getter declaration to Object.defineProperty',
+  `const obj = {
+    get value() {
+      return this._value;
+    }
+  };`,
+  `var obj = {};
+  Object.defineProperty(obj, "value", {
+    get: function () {
+      return this._value;
+    },
+    configurable: true
+  });`);
+
+testTransform(
+  'convert object setter declaration to Object.defineProperty',
+  `const obj = {
+    set value(v) {
+      this._value = v;
+    }
+  };`,
+  `var obj = {};
+  Object.defineProperty(obj, "value", {
+    set: function (v) {
+      this._value = v;
+    },
+    configurable: true
+  });`);
+
+testTransform(
+  'convert object with computed property names',
+  `const key = 'dynamic';
+  const obj = {
+    [key]: 'value',
+    ['static']: 'static value'
+  };`,
+  `var key = 'dynamic';
+  var obj = {};
+  obj[key] = 'value';
+  obj['static'] = 'static value';`);
+
+testTransform(
+  'convert object with shorthand property names',
+  `const x = 1, y = 2;
+  const obj = { x, y };`,
+  `var x = 1;
+  var y = 2;
+  var obj = {};
+  obj.x = x;
+  obj.y = y;`);
+
+testTransform(
+  'convert object with mixed property types',
+  `const name = 'test';
+  const obj = {
+    regular: 'value',
+    [name]: 'computed',
+    method() {
+      return 'method';
+    },
+    get getter() {
+      return this._value;
+    },
+    set setter(v) {
+      this._value = v;
+    }
+  };`,
+  `var name = 'test';
+  var obj = {};
+  obj.regular = 'value';
+  obj[name] = 'computed';
+  obj.method = function () {
+    return 'method';
+  };
+  Object.defineProperty(obj, "getter", {
+    get: function () {
+      return this._value;
+    },
+    configurable: true
+  });
+  Object.defineProperty(obj, "setter", {
+    set: function (v) {
+      this._value = v;
+    },
+    configurable: true
+  });`);
+
 // ## `import()` calls
 
 testTransform('convert import statement to await import',

@@ -529,20 +529,28 @@ const handleObjectExpression = (path) => {
   for (const property of originalProperties) {
     const key = property.key;
     let ast;
+    let keyExpression;
     if (types.isObjectProperty(property)) {
       if (types.isIdentifier(key)) {
+        keyExpression = key.name;
         if (name === undefined) {
           if (identifierNames.includes(key.name)) {
             ast = template.ast(`${key.name} = undefined;`);
           }
         } else {
-          ast = template.ast(`${name}.${key.name} = undefined;`);
+          // Handle computed properties
+          if (property.computed) {
+            ast = template.ast(`${name}[${generate(key).code}] = undefined;`);
+          } else {
+            ast = template.ast(`${name}.${key.name} = undefined;`);
+          }
         }
         if (ast) {
           copyLocation(property, ast);
         }
       }
       if (types.isStringLiteral(key)) {
+        keyExpression = `'${key.value}'`;
         if (name === undefined) {
           if (identifierNames.includes(key.value)) {
             ast = template.ast(`${key.value} = undefined;`);
@@ -560,32 +568,61 @@ const handleObjectExpression = (path) => {
         copyLocation(property.key, ast.expression.left);
       }
     } else if (types.isObjectMethod(property)) {
-      if (types.isIdentifier(key)) {
-        if (name === undefined) {
-          if (identifierNames.includes(key.name)) {
-            ast = template.ast(`${key.name} = function () { };`);
+      // Handle getters and setters
+      if (property.kind === 'get' || property.kind === 'set') {
+        if (types.isIdentifier(key)) {
+          keyExpression = key.name;
+          if (name === undefined) {
+            if (identifierNames.includes(key.name)) {
+              ast = template.ast(`Object.defineProperty(${key.name}, "${key.name}", { ${property.kind}: function () { }, configurable: true });`);
+            }
+          } else {
+            ast = template.ast(`Object.defineProperty(${name}, "${key.name}", { ${property.kind}: function () { }, configurable: true });`);
+          }
+          if (ast) {
+            copyLocation(property, ast);
+            const accessor = ast.expression.arguments[2].properties[0].value;
+            accessor.body = property.body;
+            accessor.params = property.params;
           }
         } else {
-          ast = template.ast(`${name}.${key.name} = function () { };`);
-        }
-        if (ast) {
-          copyLocation(property, ast);
-          const expressionRight = ast.expression.right;
-          expressionRight.params = property.params;
-          expressionRight.async = property.async;
-          expressionRight.generator = property.generator;
-          expressionRight.body = property.body;
-          copyLocation(property.body, ast.expression);
-          copyLocation(property.key, ast.expression.left);
+          throw new Error(`Unexpected key type '${key.type}'.`);
         }
       } else {
-        throw new Error(`Unexpected key type '${key.type}'.`);
+        // Handle regular methods
+        if (types.isIdentifier(key)) {
+          keyExpression = key.name;
+          if (name === undefined) {
+            if (identifierNames.includes(key.name)) {
+              ast = template.ast(`${key.name} = function () { };`);
+            }
+          } else {
+            ast = template.ast(`${name}.${key.name} = function () { };`);
+          }
+          if (ast) {
+            copyLocation(property, ast);
+            const expressionRight = ast.expression.right;
+            expressionRight.params = property.params;
+            expressionRight.async = property.async;
+            expressionRight.generator = property.generator;
+            expressionRight.body = property.body;
+            copyLocation(property.body, ast.expression);
+            copyLocation(property.key, ast.expression.left);
+          }
+        } else {
+          throw new Error(`Unexpected key type '${key.type}'.`);
+        }
       }
     } else {
       throw new Error(`Unexpected object member '${property.type}'.`);
     }
+    
     if (ast) {
-      ast._removeCode = `delete ${name}['${key.name}']`;
+      if (types.isIdentifier(key)) {
+        ast._removeCode = `delete ${name || key.name}['${key.name}']`;
+      } else {
+        ast._removeCode = `delete ${name}[${keyExpression}]`;
+      }
       outputASTs.push(ast);
     }
   }
