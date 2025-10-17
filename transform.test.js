@@ -65,7 +65,14 @@ testTransform(
     field1 = 3;
   }`,
   `var A = class A {};
-  A.prototype.field1 = 3;`);
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(A.prototype, "field1", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })(3);`);
 
 testTransform(
   'convert class private method declaration to class expression',
@@ -85,7 +92,14 @@ testTransform(
   #field1 = 7;
 }`,
   `var A = class A {};
-A.prototype._PRIVATE_field1 = 7;`);
+(function (initValue) {
+  const valueMap = new WeakMap();
+  Object.defineProperty(A.prototype, "_PRIVATE_field1", {
+    get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+    set(newValue) { valueMap.set(this, newValue); },
+    configurable: true
+  });
+})(7);`);
 
 testTransform(
   'convert class extends declaration to class expression',
@@ -208,7 +222,14 @@ testTransform(
   }`,
   `var Example = class Example {};
   Example.staticField = 'static';
-  Example.prototype.instanceField = 'instance';
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(Example.prototype, "instanceField", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })('instance');
   Example.staticMethod = function () {
     return 'static method';
   };
@@ -280,7 +301,14 @@ testTransform(
   }`,
   `var Example = class Example {};
   Example._PRIVATE_staticPrivate = 'static private';
-  Example.prototype._PRIVATE_instancePrivate = 'instance private';
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(Example.prototype, "_PRIVATE_instancePrivate", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })('instance private');
   Example._PRIVATE_staticPrivateMethod = function () {
     return 'static private method';
   };
@@ -300,8 +328,22 @@ testTransform(
   }`,
   `var key = 'dynamic';
   var Example = class Example {};
-  Example.prototype[key] = 'value';
-  Example.prototype['static'] = 'static value';
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(Example.prototype, key, {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })('value');
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(Example.prototype, 'static', {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })('static value');
   Example.prototype[key] = function () {
     return 'method';
   };`);

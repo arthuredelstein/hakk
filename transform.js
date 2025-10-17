@@ -346,16 +346,35 @@ const nodesForClass = ({ className, classBodyNodes }) => {
       }
     } else if (classBodyNode.type === 'ClassProperty') {
       const keyExpression = classBodyNode.computed ? generate(classBodyNode.key).code : classBodyNode.key.name;
-      const target = classBodyNode.static ? className : `${className}.prototype`;
-      const propertyAccess = classBodyNode.computed ? `[${keyExpression}]` : `.${keyExpression}`;
-      templateAST = template.ast(
-        `${target}${propertyAccess} = undefined;`
-      );
-      copyLocation(classBodyNode, templateAST);
-      if (classBodyNode.value !== null) {
-        templateAST.expression.right = classBodyNode.value;
+      if (classBodyNode.static) {
+        // Static fields go on the class constructor
+        const target = className;
+        const propertyAccess = classBodyNode.computed ? `[${keyExpression}]` : `.${keyExpression}`;
+        templateAST = template.ast(
+          `${target}${propertyAccess} = undefined;`
+        );
+        copyLocation(classBodyNode, templateAST);
+        if (classBodyNode.value !== null) {
+          templateAST.expression.right = classBodyNode.value;
+        }
+        templateAST._removeCode = `if (${className}) { delete ${target}${classBodyNode.computed ? '[' + keyExpression + ']' : '.' + keyExpression} }`;
+      } else {
+        // Instance fields: values are stored in a WeakMap
+        const propertyName = classBodyNode.computed ? keyExpression : `"${keyExpression}"`;
+        templateAST = template.ast(
+          `(function (initValue) {
+            const valueMap = new WeakMap();
+            Object.defineProperty(${className}.prototype, ${propertyName}, {
+              get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+              set(newValue) { valueMap.set(this, newValue); },
+              configurable: true
+            });
+          })(undefined);`
+        );
+        templateAST.expression.arguments[0] = classBodyNode.value || types.identifier('undefined');
+        copyLocation(classBodyNode, templateAST);
+        templateAST._removeCode = `delete ${className}.prototype[${propertyName}];`;
       }
-      templateAST._removeCode = `if (${className}) { delete ${target}${classBodyNode.computed ? '[' + keyExpression + ']' : '.' + keyExpression} }`;
     } else if (classBodyNode.type === 'StaticBlock') {
       templateAST = template.ast(
         `(function () {}).call(${className})`
