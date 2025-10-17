@@ -30,10 +30,7 @@ case $choice in
     1)
         echo "Setting up full test pre-push hook..."
         cp .husky/pre-push .husky/pre-push.backup 2>/dev/null || true
-        echo '#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-echo "🧪 Running pre-push tests..."
+        echo 'echo "🧪 Running pre-push tests..."
 echo "================================"
 
 # Run linting and tests
