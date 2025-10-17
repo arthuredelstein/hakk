@@ -528,7 +528,6 @@ const superVisitor = {
   }
 };
 
-
 const handleObjectExpression = (path) => {
   if (!isTopLevelDeclaredObject(path)) {
     return;
@@ -573,7 +572,7 @@ const handleObjectExpression = (path) => {
     } else if (types.isObjectMethod(property)) {
       // Use generate() for all key types
       keyExpression = generate(key).code;
-      
+
       if (property.kind === 'get' || property.kind === 'set') {
         // Handle getters and setters
         if (name === undefined) {
@@ -619,7 +618,7 @@ const handleObjectExpression = (path) => {
     } else {
       throw new Error(`Unexpected object member '${property.type}'.`);
     }
-    
+
     if (ast) {
       if (types.isIdentifier(key)) {
         ast._removeCode = `delete ${name || key.name}['${key.name}']`;

@@ -17,7 +17,7 @@ testTransform('convert const to var', 'const x = 1;', 'var x = 1;');
 
 testTransform('convert let to var', 'let x = 1;', 'var x = 1;');
 
-testTransform('convert var assignment to await to two statements','var x = await Promise.resolve(1);', 'var x; x = await Promise.resolve(1);');
+testTransform('convert var assignment to await to two statements', 'var x = await Promise.resolve(1);', 'var x; x = await Promise.resolve(1);');
 
 testTransform('convert let assignment to await to two statements', 'let x = await Promise.resolve(2);', 'var x; x = await Promise.resolve(2);');
 

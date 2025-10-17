@@ -39,11 +39,8 @@ const scriptToInject = `
   </script>
 `;
 
-let lastRequest;
-
 const respond = async (req, res) => {
   console.log(req.url, req.rawHeaders);
-  lastRequest = req;
   const pathname = req.url;
   let contentType = '';
   if (pathname.endsWith('html') || pathname.endsWith('htm')) {
@@ -77,7 +74,7 @@ const webEvaluator = () => {
 
   const broadcastMessage = (message) => {
     wss.clients.forEach(client => {
-      if (client.readyState = WebSocket.OPEN) {
+      if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify(message));
       }
     });

@@ -35,7 +35,7 @@ const reformatStack = (stack) => {
         const [lineFragment] = line.match(rawStackLineRegex);
         line = line.replace(lineFragment, pendingFragment);
       } catch (e) {
-       // Ignore this error
+        // Ignore this error
       }
       pendingLine = undefined;
     }

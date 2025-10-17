@@ -4,7 +4,10 @@
   "description": "Interactive programming for Node.js. Speed up your JavaScript development!",
   "main": "index.js",
   "scripts": {
-    "test": "npx jest"
+    "test": "npx jest",
+    "lint": "npx semistandard",
+    "test:ci": "npm run lint && npm test",
+    "test:local": "./.github/scripts/test-local.sh"
   },
   "author": "Arthur Edelstein",
   "license": "MIT",
