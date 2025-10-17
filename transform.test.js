@@ -411,7 +411,7 @@ testTransform(
   }`,
   `var Child = class Child extends Parent {};
   Child.prototype.getValue = function () {
-    return undefined;
+    return Parent.prototype.instanceProperty;
   };`);
 
 testTransform(
@@ -428,7 +428,7 @@ testTransform(
   Child.prototype.testSuper = function () {
     return {
       method: Parent.prototype.parentMethod.call(this),
-      property: undefined
+      property: Parent.prototype.instanceProperty
     };
   };`);
 
@@ -1641,3 +1641,572 @@ testTransform(
     return result;
   };
   var withAwait = (...args) => withAwait_hakk_(...args);`);
+
+// ## class inheritance edge cases
+
+testTransform(
+  'convert simple class inheritance',
+  `class Animal {
+    constructor(name) {
+      this.name = name;
+    }
+    speak() {
+      return this.name + ' makes a sound';
+    }
+  }
+
+  class Dog extends Animal {
+    speak() {
+      return this.name + ' barks';
+    }
+  }`,
+  `var Animal = class Animal {
+    constructor(name) {
+      this.name = name;
+    }
+  };
+  Animal.prototype.speak = function () {
+    return this.name + ' makes a sound';
+  };
+  var Dog = class Dog extends Animal {};
+  Dog.prototype.speak = function () {
+    return this.name + ' barks';
+  };`);
+
+testTransform(
+  'convert class with super constructor call',
+  `class Parent {
+    constructor(value) {
+      this.value = value;
+    }
+  }
+
+  class Child extends Parent {
+    constructor(value, extra) {
+      super(value);
+      this.extra = extra;
+    }
+  }`,
+  `var Parent = class Parent {
+    constructor(value) {
+      this.value = value;
+    }
+  };
+  var Child = class Child extends Parent {
+    constructor(value, extra) {
+      super(value);
+      this.extra = extra;
+    }
+  };`);
+
+testTransform(
+  'convert class with super method call in constructor',
+  `class Base {
+    init() {
+      this.initialized = true;
+    }
+  }
+
+  class Derived extends Base {
+    constructor() {
+      super();
+      super.init();
+    }
+  }`,
+  `var Base = class Base {};
+  Base.prototype.init = function () {
+    this.initialized = true;
+  };
+  var Derived = class Derived extends Base {
+    constructor() {
+      super();
+      Base.prototype.init.call(this);
+    }
+  };`);
+
+testTransform(
+  'convert class with static inheritance',
+  `class Parent {
+    static getType() {
+      return 'parent';
+    }
+  }
+
+  class Child extends Parent {
+    static getType() {
+      return 'child';
+    }
+  }`,
+  `var Parent = class Parent {};
+  Parent.getType = function () {
+    return 'parent';
+  };
+  var Child = class Child extends Parent {};
+  Child.getType = function () {
+    return 'child';
+  };`);
+
+testTransform(
+  'convert class with private field inheritance',
+  `class Parent {
+    #privateField = 'parent';
+    getPrivate() {
+      return this.#privateField;
+    }
+  }
+
+  class Child extends Parent {
+    #childPrivate = 'child';
+    getChildPrivate() {
+      return this.#childPrivate;
+    }
+  }`,
+  `var Parent = class Parent {};
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(Parent.prototype, "_PRIVATE_privateField", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })('parent');
+  Parent.prototype.getPrivate = function () {
+    return this._PRIVATE_privateField;
+  };
+  var Child = class Child extends Parent {};
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(Child.prototype, "_PRIVATE_childPrivate", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })('child');
+  Child.prototype.getChildPrivate = function () {
+    return this._PRIVATE_childPrivate;
+  };`);
+
+testTransform(
+  'convert class with instance field inheritance',
+  `class Parent {
+    parentField = 'parent';
+  }
+
+  class Child extends Parent {
+    childField = 'child';
+  }`,
+  `var Parent = class Parent {};
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(Parent.prototype, "parentField", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })('parent');
+  var Child = class Child extends Parent {};
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(Child.prototype, "childField", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })('child');`);
+
+testTransform(
+  'convert class with static field inheritance',
+  `class Parent {
+    static parentStatic = 'parent';
+  }
+
+  class Child extends Parent {
+    static childStatic = 'child';
+  }`,
+  `var Parent = class Parent {};
+  Parent.parentStatic = 'parent';
+  var Child = class Child extends Parent {};
+  Child.childStatic = 'child';`);
+
+testTransform(
+  'convert class with getter/setter inheritance',
+  `class Parent {
+    get value() {
+      return this._value;
+    }
+    set value(v) {
+      this._value = v;
+    }
+  }
+
+  class Child extends Parent {
+    get doubled() {
+      return this.value * 2;
+    }
+  }`,
+  `var Parent = class Parent {};
+  Object.defineProperty(Parent.prototype, "value", {
+    get: function () {
+      return this._value;
+    },
+    configurable: true
+  });
+  Object.defineProperty(Parent.prototype, "value", {
+    set: function (v) {
+      this._value = v;
+    },
+    configurable: true
+  });
+  var Child = class Child extends Parent {};
+  Object.defineProperty(Child.prototype, "doubled", {
+    get: function () {
+      return this.value * 2;
+    },
+    configurable: true
+  });`);
+
+testTransform(
+  'convert class with method overriding and super calls',
+  `class Parent {
+    method() {
+      return 'parent';
+    }
+  }
+
+  class Child extends Parent {
+    method() {
+      return super.method() + ' child';
+    }
+  }`,
+  `var Parent = class Parent {};
+  Parent.prototype.method = function () {
+    return 'parent';
+  };
+  var Child = class Child extends Parent {};
+  Child.prototype.method = function () {
+    return Parent.prototype.method.call(this) + ' child';
+  };`);
+
+testTransform(
+  'convert class with static method inheritance',
+  `class Parent {
+    static create() {
+      return new this();
+    }
+  }
+
+  class Child extends Parent {
+    static create() {
+      return new this();
+    }
+  }`,
+  `var Parent = class Parent {};
+  Parent.create = function () {
+    return new this();
+  };
+  var Child = class Child extends Parent {};
+  Child.create = function () {
+    return new this();
+  };`);
+
+testTransform(
+  'convert class with computed property names in inheritance',
+  `class Parent {
+    ['parent' + 'Method']() {
+      return 'parent';
+    }
+  }
+
+  class Child extends Parent {
+    ['child' + 'Method']() {
+      return 'child';
+    }
+  }`,
+  `var Parent = class Parent {};
+  Parent.prototype['parent' + 'Method'] = function () {
+    return 'parent';
+  };
+  var Child = class Child extends Parent {};
+  Child.prototype['child' + 'Method'] = function () {
+    return 'child';
+  };`);
+
+testTransform(
+  'convert class with async method inheritance',
+  `class Parent {
+    async parentAsync() {
+      return 'parent';
+    }
+  }
+
+  class Child extends Parent {
+    async childAsync() {
+      return 'child';
+    }
+  }`,
+  `var Parent = class Parent {};
+  Parent.prototype.parentAsync = async function () {
+    return 'parent';
+  };
+  var Child = class Child extends Parent {};
+  Child.prototype.childAsync = async function () {
+    return 'child';
+  };`);
+
+testTransform(
+  'convert class with generator method inheritance',
+  `class Parent {
+    *parentGen() {
+      yield 'parent';
+    }
+  }
+
+  class Child extends Parent {
+    *childGen() {
+      yield 'child';
+    }
+  }`,
+  `var Parent = class Parent {};
+  Parent.prototype.parentGen = function* () {
+    yield 'parent';
+  };
+  var Child = class Child extends Parent {};
+  Child.prototype.childGen = function* () {
+    yield 'child';
+  };`);
+
+testTransform(
+  'convert class with private method inheritance',
+  `class Parent {
+    #privateMethod() {
+      return 'parent private';
+    }
+    callPrivate() {
+      return this.#privateMethod();
+    }
+  }
+
+  class Child extends Parent {
+    #childPrivate() {
+      return 'child private';
+    }
+    callChildPrivate() {
+      return this.#childPrivate();
+    }
+  }`,
+  `var Parent = class Parent {};
+  Parent.prototype._PRIVATE_privateMethod = function () {
+    return 'parent private';
+  };
+  Parent.prototype.callPrivate = function () {
+    return this._PRIVATE_privateMethod();
+  };
+  var Child = class Child extends Parent {};
+  Child.prototype._PRIVATE_childPrivate = function () {
+    return 'child private';
+  };
+  Child.prototype.callChildPrivate = function () {
+    return this._PRIVATE_childPrivate();
+  };`);
+
+testTransform(
+  'convert class with static block inheritance',
+  `class Parent {
+    static parentStatic = 'parent';
+    static {
+      this.initialized = true;
+    }
+  }
+
+  class Child extends Parent {
+    static childStatic = 'child';
+    static {
+      this.childInitialized = true;
+    }
+  }`,
+  `var Parent = class Parent {};
+  Parent.parentStatic = 'parent';
+  (function () {
+    this.initialized = true;
+  }).call(Parent);
+  var Child = class Child extends Parent {};
+  Child.childStatic = 'child';
+  (function () {
+    this.childInitialized = true;
+  }).call(Child);`);
+
+testTransform(
+  'convert class with multiple inheritance levels',
+  `class GrandParent {
+    grandParentMethod() {
+      return 'grandparent';
+    }
+  }
+
+  class Parent extends GrandParent {
+    parentMethod() {
+      return 'parent';
+    }
+  }
+
+  class Child extends Parent {
+    childMethod() {
+      return 'child';
+    }
+  }`,
+  `var GrandParent = class GrandParent {};
+  GrandParent.prototype.grandParentMethod = function () {
+    return 'grandparent';
+  };
+  var Parent = class Parent extends GrandParent {};
+  Parent.prototype.parentMethod = function () {
+    return 'parent';
+  };
+  var Child = class Child extends Parent {};
+  Child.prototype.childMethod = function () {
+    return 'child';
+  };`);
+
+testTransform(
+  'convert class with abstract-like pattern',
+  `class AbstractBase {
+    constructor() {
+      if (this.constructor === AbstractBase) {
+        throw new Error('Cannot instantiate abstract class');
+      }
+    }
+    abstractMethod() {
+      throw new Error('Abstract method must be implemented');
+    }
+  }
+
+  class Concrete extends AbstractBase {
+    abstractMethod() {
+      return 'implemented';
+    }
+  }`,
+  `var AbstractBase = class AbstractBase {
+    constructor() {
+      if (this.constructor === AbstractBase) {
+        throw new Error('Cannot instantiate abstract class');
+      }
+    }
+  };
+  AbstractBase.prototype.abstractMethod = function () {
+    throw new Error('Abstract method must be implemented');
+  };
+  var Concrete = class Concrete extends AbstractBase {};
+  Concrete.prototype.abstractMethod = function () {
+    return 'implemented';
+  };`);
+
+testTransform(
+  'convert class with mixin-like pattern',
+  `const TimestampMixin = (Base) => class extends Base {
+    getTimestamp() {
+      return Date.now();
+    }
+  };
+
+  class BaseClass {
+    getName() {
+      return 'base';
+    }
+  }
+
+  class MixedClass extends TimestampMixin(BaseClass) {
+    getInfo() {
+      return this.getName() + ' at ' + this.getTimestamp();
+    }
+  }`,
+  `var TimestampMixin_hakk_ = Base => class extends Base {
+    getTimestamp() {
+      return Date.now();
+    }
+  };
+  var TimestampMixin = (...args) => TimestampMixin_hakk_(...args);
+  var BaseClass = class BaseClass {};
+  BaseClass.prototype.getName = function () {
+    return 'base';
+  };
+  var MixedClass = class MixedClass extends TimestampMixin(BaseClass) {};
+  MixedClass.prototype.getInfo = function () {
+    return this.getName() + ' at ' + this.getTimestamp();
+  };`);
+
+testTransform(
+  'convert class with interface-like pattern',
+  `class Drawable {
+    draw() {
+      throw new Error('draw method must be implemented');
+    }
+  }
+
+  class Circle extends Drawable {
+    constructor(radius) {
+      super();
+      this.radius = radius;
+    }
+    draw() {
+      return 'Drawing circle with radius ' + this.radius;
+    }
+  }`,
+  `var Drawable = class Drawable {};
+  Drawable.prototype.draw = function () {
+    throw new Error('draw method must be implemented');
+  };
+  var Circle = class Circle extends Drawable {
+    constructor(radius) {
+      super();
+      this.radius = radius;
+    }
+  };
+  Circle.prototype.draw = function () {
+    return 'Drawing circle with radius ' + this.radius;
+  };`);
+
+testTransform(
+  'convert class with complex super property access',
+  `class Parent {
+    static staticProp = 'parent static';
+    instanceProp = 'parent instance';
+  }
+
+  class Child extends Parent {
+    static staticProp = 'child static';
+    instanceProp = 'child instance';
+
+    static getParentStatic() {
+      return super.staticProp;
+    }
+
+    getParentInstance() {
+      return super.instanceProp;
+    }
+  }`,
+  `var Parent = class Parent {};
+  Parent.staticProp = 'parent static';
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(Parent.prototype, "instanceProp", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })('parent instance');
+  var Child = class Child extends Parent {};
+  Child.staticProp = 'child static';
+  (function (initValue) {
+    const valueMap = new WeakMap();
+    Object.defineProperty(Child.prototype, "instanceProp", {
+      get() { return valueMap.has(this) ? valueMap.get(this) : initValue; },
+      set(newValue) { valueMap.set(this, newValue); },
+      configurable: true
+    });
+  })('child instance');
+  Child.getParentStatic = function () {
+    return Parent.staticProp;
+  };
+  Child.prototype.getParentInstance = function () {
+    return Parent.prototype.instanceProp;
+  };`);
