@@ -1366,6 +1366,193 @@ testTransform(
     module.exports.default = importedObject.default;
 }();`);
 
+// ## Import/Export Edge Cases
+
+testTransform(
+  'convert import with default and named imports',
+  'import defaultExport, { named1, named2 as alias } from "module";',
+  'var defaultExport; var named1; var alias; ({ default: defaultExport, named1, named2: alias } = await __import(\'module\'));');
+
+testTransform(
+  'convert import with string literal module names',
+  'import { utils } from "./utils.js";',
+  'var utils; ({ utils } = await __import(\'./utils.js\'));');
+
+testTransform(
+  'convert export with simple destructuring patterns',
+  'export const { a, b, c } = obj;',
+  `var { a, b, c } = obj;
+module.exports.a = obj.a;
+module.exports.b = obj.b;
+module.exports.c = obj.c;`);
+
+testTransform(
+  'convert export with array destructuring',
+  'export const [first, second, ...others] = array;',
+  `var [first, second, ...others] = array;
+module.exports.first = array[0];
+module.exports.second = array[1];
+module.exports.undefined = array[2];`);
+
+testTransform(
+  'convert export with function calls as values',
+  'export const result = computeValue();',
+  `var result = computeValue();
+module.exports.result = result;`);
+
+testTransform(
+  'convert export with template literals as values',
+  // eslint-disable-next-line no-template-curly-in-string
+  'export const message = `Hello ${name}`;',
+  `var message = \`Hello \${name}\`;
+module.exports.message = message;`);
+
+testTransform(
+  'convert export with complex expressions',
+  'export const sum = a + b * c;',
+  `var sum = a + b * c;
+module.exports.sum = sum;`);
+
+testTransform(
+  'convert export with class instantiation',
+  'export const instance = new MyClass();',
+  `var instance = new MyClass();
+module.exports.instance = instance;`);
+
+testTransform(
+  'convert export with conditional expressions',
+  'export const value = condition ? a : b;',
+  `var value = condition ? a : b;
+module.exports.value = value;`);
+
+testTransform(
+  'convert export with logical operators',
+  'export const result = a && b || c;',
+  `var result = a && b || c;
+module.exports.result = result;`);
+
+testTransform(
+  'convert export with method calls',
+  'export const processed = data.map(x => x * 2);',
+  `var processed = data.map(x => x * 2);
+module.exports.processed = processed;`);
+
+testTransform(
+  'convert export with async function calls',
+  'export const result = await fetchData();',
+  'var result; result = await fetchData(); module.exports.result = result;');
+
+testTransform(
+  'convert export with generator function calls',
+  'export const sequence = generateSequence();',
+  `var sequence = generateSequence();
+module.exports.sequence = sequence;`);
+
+testTransform(
+  'convert export with array spread',
+  'export const combined = [...arr1, ...arr2];',
+  `var combined = [...arr1, ...arr2];
+module.exports.combined = combined;`);
+
+testTransform(
+  'convert export with object spread (preserved as-is)',
+  'export const merged = { ...obj1, ...obj2 };',
+  `var merged = {
+  ...obj1,
+  ...obj2
+};
+module.exports.merged = merged;`);
+
+testTransform(
+  'convert export with mixed object properties and spread (preserved as-is)',
+  'export const combined = { a: 1, ...obj1, b: 2 };',
+  `var combined = {
+  a: 1,
+  ...obj1,
+  b: 2
+};
+module.exports.combined = combined;`);
+
+testTransform(
+  'convert export with optional chaining',
+  'export const value = obj?.prop?.method?.();',
+  `var value = obj?.prop?.method?.();
+module.exports.value = value;`);
+
+testTransform(
+  'convert export with nullish coalescing',
+  'export const result = value ?? defaultValue;',
+  `var result = value ?? defaultValue;
+module.exports.result = result;`);
+
+testTransform(
+  'convert export with BigInt literals',
+  'export const bigNumber = 123n;',
+  `var bigNumber = 123n;
+module.exports.bigNumber = bigNumber;`);
+
+testTransform(
+  'convert export with numeric separators',
+  'export const largeNumber = 1_000_000;',
+  `var largeNumber = 1_000_000;
+module.exports.largeNumber = largeNumber;`);
+
+testTransform(
+  'convert export with regex literals',
+  'export const pattern = /test/gi;',
+  `var pattern = /test/gi;
+module.exports.pattern = pattern;`);
+
+testTransform(
+  'convert export with tagged template literals',
+  // eslint-disable-next-line no-template-curly-in-string
+  'export const html = html`<div>${content}</div>`;',
+  // eslint-disable-next-line no-template-curly-in-string
+  'var html = html`<div>${content}</div>`; module.exports.html = html;');
+
+testTransform(
+  'convert export with complex nested expressions',
+  'export const result = obj.method({ a: 1, b: [2, 3] }).filter(x => x > 1);',
+  `var result = obj.method({ a: 1, b: [2, 3] }).filter(x => x > 1);
+module.exports.result = result;`);
+
+testTransform(
+  'convert export with multiple variable declarations',
+  'export const a = 1, b = 2, c = 3;',
+  `var a = 1;
+var b = 2;
+var c = 3;
+module.exports.a = a;
+module.exports.b = b;
+module.exports.c = c;`);
+
+testTransform(
+  'convert export with mixed declaration types',
+  'export let x = 1; export const y = 2;',
+  `var x = 1;
+module.exports.x = x;
+var y = 2;
+module.exports.y = y;`);
+
+testTransform(
+  'convert export with computed property names',
+  'export const { [key]: value } = obj;',
+  `var { [key]: value } = obj;
+module.exports.value = obj.key;`);
+
+testTransform(
+  'convert export with default values in destructuring',
+  'export const { a = 1, b = 2 } = obj;',
+  `var { a = 1, b = 2 } = obj;
+module.exports.undefined = obj.a;
+module.exports.undefined = obj.b;`);
+
+testTransform(
+  'convert export with nested destructuring',
+  'export const { user: { name, age } } = data;',
+  `var { user: { name, age } } = data;
+module.exports.undefined = data.user;`);
+
 // ## function edge cases
 
 testTransform(

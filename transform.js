@@ -536,6 +536,13 @@ const handleObjectExpression = (path) => {
     return;
   }
   const originalProperties = path.node.properties;
+  // Check if the object contains any spread elements
+  // If it does, don't transform it at all - spread elements are runtime operations
+  const hasSpreadElements = originalProperties.some(property => types.isSpreadElement(property));
+  if (hasSpreadElements) {
+    // Don't transform objects with spread elements - preserve the original object literal
+    return;
+  }
   const name = path.parentPath.node.id.name;
   const outputASTs = [];
   let identifierNames = [];
