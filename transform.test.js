@@ -216,6 +216,78 @@ testTransform(
     return 'instance method';
   };`);
 
+testTransform(
+  'convert class with private static field',
+  `class Data {
+    static #secret = 'hidden';
+  }`,
+  `var Data = class Data {};
+  Data._PRIVATE_secret = 'hidden';`);
+
+testTransform(
+  'convert class with private static method',
+  `class Utils {
+    static #helper() {
+      return 'private help';
+    }
+  }`,
+  `var Utils = class Utils {};
+  Utils._PRIVATE_helper = function () {
+    return 'private help';
+  };`);
+
+testTransform(
+  'convert class with private static getter',
+  `class Config {
+    static get #value() {
+      return this._internal;
+    }
+  }`,
+  `var Config = class Config {};
+  Object.defineProperty(Config, "_PRIVATE_value", {
+    get: function () {
+      return this._internal;
+    },
+    configurable: true
+  });`);
+
+testTransform(
+  'convert class with private static setter',
+  `class Config {
+    static set #value(v) {
+      this._internal = v;
+    }
+  }`,
+  `var Config = class Config {};
+  Object.defineProperty(Config, "_PRIVATE_value", {
+    set: function (v) {
+      this._internal = v;
+    },
+    configurable: true
+  });`);
+
+testTransform(
+  'convert class with mixed private static and instance members',
+  `class Example {
+    static #staticPrivate = 'static private';
+    #instancePrivate = 'instance private';
+    static #staticPrivateMethod() {
+      return 'static private method';
+    }
+    #instancePrivateMethod() {
+      return 'instance private method';
+    }
+  }`,
+  `var Example = class Example {};
+  Example._PRIVATE_staticPrivate = 'static private';
+  Example.prototype._PRIVATE_instancePrivate = 'instance private';
+  Example._PRIVATE_staticPrivateMethod = function () {
+    return 'static private method';
+  };
+  Example.prototype._PRIVATE_instancePrivateMethod = function () {
+    return 'instance private method';
+  };`);
+
 // ## `import()` calls
 
 testTransform('convert import statement to await import',
