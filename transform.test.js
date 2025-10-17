@@ -1365,3 +1365,279 @@ testTransform(
     const importedObject = await __import('module-name');
     module.exports.default = importedObject.default;
 }();`);
+
+// ## function edge cases
+
+testTransform(
+  'convert function with complex parameter destructuring',
+  `function complexParams({ a, b = 1 }, [c, d = 2], ...rest) {
+    return a + b + c + d + rest.length;
+  }`,
+  `var complexParams_hakk_ = function complexParams({ a, b = 1 }, [c, d = 2], ...rest) {
+    return a + b + c + d + rest.length;
+  };
+  var complexParams = (...args) => complexParams_hakk_(...args);`);
+
+testTransform(
+  'convert function with default parameters and rest parameters',
+  `function withDefaults(a = 1, b = 2, ...c) {
+    return a + b + c.length;
+  }`,
+  `var withDefaults_hakk_ = function withDefaults(a = 1, b = 2, ...c) {
+    return a + b + c.length;
+  };
+  var withDefaults = (...args) => withDefaults_hakk_(...args);`);
+
+testTransform(
+  'convert function with complex return statement',
+  `function complexReturn() {
+    return {
+      value: 42,
+      method() { return this.value; }
+    };
+  }`,
+  `var complexReturn_hakk_ = function complexReturn() {
+    return {
+      value: 42,
+      method() { return this.value; }
+    };
+  };
+  var complexReturn = (...args) => complexReturn_hakk_(...args);`);
+
+testTransform(
+  'convert function with nested function declarations',
+  `function outer() {
+    function inner() {
+      return 'nested';
+    }
+    return inner();
+  }`,
+  `var outer_hakk_ = function outer() {
+    function inner() {
+      return 'nested';
+    }
+    return inner();
+  };
+  var outer = (...args) => outer_hakk_(...args);`);
+
+testTransform(
+  'convert function with this binding and call/apply',
+  `function boundFunction() {
+    return this.value;
+  }`,
+  `var boundFunction_hakk_ = function boundFunction() {
+    return this.value;
+  };
+  var boundFunction = (...args) => boundFunction_hakk_(...args);`);
+
+testTransform(
+  'convert function with try-catch-finally',
+  `function withErrorHandling() {
+    try {
+      throw new Error('test');
+    } catch (e) {
+      return e.message;
+    } finally {
+      console.log('cleanup');
+    }
+  }`,
+  `var withErrorHandling_hakk_ = function withErrorHandling() {
+    try {
+      throw new Error('test');
+    } catch (e) {
+      return e.message;
+    } finally {
+      console.log('cleanup');
+    }
+  };
+  var withErrorHandling = (...args) => withErrorHandling_hakk_(...args);`);
+
+testTransform(
+  'convert function with switch statement',
+  `function withSwitch(value) {
+    switch (value) {
+      case 1: return 'one';
+      case 2: return 'two';
+      default: return 'other';
+    }
+  }`,
+  `var withSwitch_hakk_ = function withSwitch(value) {
+    switch (value) {
+      case 1: return 'one';
+      case 2: return 'two';
+      default: return 'other';
+    }
+  };
+  var withSwitch = (...args) => withSwitch_hakk_(...args);`);
+
+testTransform(
+  'convert function with labeled statements',
+  `function withLabels() {
+    outer: for (let i = 0; i < 3; i++) {
+      inner: for (let j = 0; j < 3; j++) {
+        if (i === 1 && j === 1) break outer;
+      }
+    }
+  }`,
+  `var withLabels_hakk_ = function withLabels() {
+    outer: for (let i = 0; i < 3; i++) {
+      inner: for (let j = 0; j < 3; j++) {
+        if (i === 1 && j === 1) break outer;
+      }
+    }
+  };
+  var withLabels = (...args) => withLabels_hakk_(...args);`);
+
+testTransform(
+  'convert function with yield expressions (generator)',
+  `function* generatorWithYield() {
+    yield 1;
+    yield 2;
+    return 3;
+  }`,
+  `var generatorWithYield_hakk_ = function* generatorWithYield() {
+    yield 1;
+    yield 2;
+    return 3;
+  };
+  var generatorWithYield = (...args) => generatorWithYield_hakk_(...args);`);
+
+testTransform(
+  'convert function with await expressions (async)',
+  `async function asyncWithAwait() {
+    const result = await Promise.resolve(42);
+    return result * 2;
+  }`,
+  `var asyncWithAwait_hakk_ = async function asyncWithAwait() {
+    const result = await Promise.resolve(42);
+    return result * 2;
+  };
+  var asyncWithAwait = (...args) => asyncWithAwait_hakk_(...args);`);
+
+testTransform(
+  'convert function with class instantiation',
+  `function createInstance() {
+    class TestClass {
+      constructor(value) {
+        this.value = value;
+      }
+    }
+    return new TestClass(42);
+  }`,
+  `var createInstance_hakk_ = function createInstance() {
+    class TestClass {
+      constructor(value) {
+        this.value = value;
+      }
+    }
+    return new TestClass(42);
+  };
+  var createInstance = (...args) => createInstance_hakk_(...args);`);
+
+testTransform(
+  'convert function with template literals and tagged templates',
+  `function withTemplates(name, count) {
+    const regular = \`Hello \${name}, count is \${count}\`;
+    const tagged = String.raw\`Path: \${name}/file.txt\`;
+    return { regular, tagged };
+  }`,
+  `var withTemplates_hakk_ = function withTemplates(name, count) {
+    const regular = \`Hello \${name}, count is \${count}\`;
+    const tagged = String.raw\`Path: \${name}/file.txt\`;
+    return { regular, tagged };
+  };
+  var withTemplates = (...args) => withTemplates_hakk_(...args);`);
+
+testTransform(
+  'convert function with object and array patterns',
+  `function withPatterns({ x, y }, [a, b]) {
+    return { x, y, a, b };
+  }`,
+  `var withPatterns_hakk_ = function withPatterns({ x, y }, [a, b]) {
+    return { x, y, a, b };
+  };
+  var withPatterns = (...args) => withPatterns_hakk_(...args);`);
+
+testTransform(
+  'convert function with optional chaining and nullish coalescing',
+  `function withModernOps(obj) {
+    const value = obj?.nested?.value ?? 'default';
+    return value;
+  }`,
+  `var withModernOps_hakk_ = function withModernOps(obj) {
+    const value = obj?.nested?.value ?? 'default';
+    return value;
+  };
+  var withModernOps = (...args) => withModernOps_hakk_(...args);`);
+
+testTransform(
+  'convert function with logical assignment operators',
+  `function withLogicalAssign(obj) {
+    obj.value ||= 'default';
+    obj.count ??= 0;
+    obj.flag &&= true;
+    return obj;
+  }`,
+  `var withLogicalAssign_hakk_ = function withLogicalAssign(obj) {
+    obj.value ||= 'default';
+    obj.count ??= 0;
+    obj.flag &&= true;
+    return obj;
+  };
+  var withLogicalAssign = (...args) => withLogicalAssign_hakk_(...args);`);
+
+testTransform(
+  'convert function with private class fields access (not supported outside class)',
+  `function accessPrivateFields(instance) {
+    return instance.privateField;
+  }`,
+  `var accessPrivateFields_hakk_ = function accessPrivateFields(instance) {
+    return instance.privateField;
+  };
+  var accessPrivateFields = (...args) => accessPrivateFields_hakk_(...args);`);
+
+testTransform(
+  'convert function with static class members access',
+  `function accessStaticMembers(Class) {
+    return Class.staticMethod() + Class.staticField;
+  }`,
+  `var accessStaticMembers_hakk_ = function accessStaticMembers(Class) {
+    return Class.staticMethod() + Class.staticField;
+  };
+  var accessStaticMembers = (...args) => accessStaticMembers_hakk_(...args);`);
+
+testTransform(
+  'convert function with import.meta usage (transformed to __import.meta)',
+  `function useImportMeta() {
+    return import.meta.url;
+  }`,
+  `var useImportMeta_hakk_ = function useImportMeta() {
+    return __import.meta.url;
+  };
+  var useImportMeta = (...args) => useImportMeta_hakk_(...args);`);
+
+testTransform(
+  'convert function with BigInt and numeric separators',
+  `function withBigInt() {
+    const big = 123_456_789n;
+    const regular = 1_000_000;
+    return big + BigInt(regular);
+  }`,
+  `var withBigInt_hakk_ = function withBigInt() {
+    const big = 123_456_789n;
+    const regular = 1_000_000;
+    return big + BigInt(regular);
+  };
+  var withBigInt = (...args) => withBigInt_hakk_(...args);`);
+
+testTransform(
+  'convert function with await expressions (async function)',
+  `async function withAwait() {
+    const result = await Promise.resolve(42);
+    return result;
+  }`,
+  `var withAwait_hakk_ = async function withAwait() {
+    const result = await Promise.resolve(42);
+    return result;
+  };
+  var withAwait = (...args) => withAwait_hakk_(...args);`);
