@@ -1,0 +1,36 @@
+name: Required Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  required-tests:
+    name: Required Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run linting with semistandard
+      run: npx semistandard
+      
+    - name: Run all tests
+      run: npm test
+      
+    - name: Test summary
+      run: |
+        echo "✅ All tests passed successfully!"
+        echo "This check must pass before merging to main branch."
