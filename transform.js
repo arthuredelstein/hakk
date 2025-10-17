@@ -283,9 +283,12 @@ const handleMemberExpression = (path) => {
     object.type = 'Identifier';
     object.name = superClassName;
   } else {
-    // For instance methods, super.property access should return undefined
-    // because class fields are instance properties, not prototype properties
-    path.replaceWith(template.ast('undefined'));
+    // For instance methods, super.property access should access the parent's prototype property
+    // since instance fields are stored as prototype properties with WeakMap-based getters/setters
+    const propertyName = path.node.property.name;
+    const ast = template.ast(`${superClassName}.prototype.${propertyName}`);
+    copyLocation(path.node, ast);
+    path.replaceWith(ast);
   }
 };
 
