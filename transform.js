@@ -3,7 +3,6 @@ const parser = require('@babel/parser');
 const template = require('@babel/template').default;
 const traverse = require('@babel/traverse').default;
 const types = require('@babel/types');
-const staticBlockPlugin = require('@babel/plugin-transform-class-static-block').default;
 const { sha256 } = require('./utils.js');
 
 // TODO: const hoistVariables = require('@babel/helper-hoist-variables').default;
@@ -348,6 +347,15 @@ const nodesForClass = ({ className, classBodyNodes }) => {
         templateAST.expression.right = classBodyNode.value;
       }
       templateAST._removeCode = `if (${className}) { delete ${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} }`;
+    } else if (classBodyNode.type === 'StaticBlock') {
+      templateAST = template.ast(
+        `(function () {}).call(${className})`
+      );
+      copyLocation(classBodyNode, templateAST);
+      templateAST.expression.callee.object.body = {
+        type: 'BlockStatement',
+        body: classBodyNode.body
+      };
     } else {
       throw new Error(`Unexpected ClassBody node type ${classBodyNode.type}`);
     }
@@ -357,6 +365,9 @@ const nodesForClass = ({ className, classBodyNodes }) => {
   }
   outputNodes.forEach(function (outputNode) {
     outputNode._parentLabel = className;
+  });
+  outputNodes.forEach(function (outputNode) {
+    console.log('outputNode', generate(outputNode).code);
   });
   return { retainedNodes, outputNodes };
 };
@@ -378,9 +389,7 @@ const handleClassExpression = (path) => {
     { classNode, className, classBodyNodes });
   classNode.body.body = retainedNodes;
   path.parentPath.parentPath.node._segmentLabel = className;
-  for (const outputNode of outputNodes) {
-    path.parentPath.parentPath.insertAfter(outputNode);
-  }
+  path.parentPath.parentPath.insertAfter(outputNodes);
 };
 
 const handleClassDeclaration = (path) => {
@@ -502,13 +511,6 @@ const superVisitor = {
   }
 };
 
-const staticBlockVisitor = staticBlockPlugin({
-  types,
-  template,
-  traverse,
-  assertVersion: () => undefined,
-  version: [8]
-}).visitor;
 
 const handleObjectExpression = (path) => {
   if (!isTopLevelDeclaredObject(path)) {
@@ -589,9 +591,7 @@ const handleObjectExpression = (path) => {
       outputASTs.push(ast);
     }
   }
-  for (const outputAST of outputASTs.reverse()) {
-    path.parentPath.parentPath.insertAfter(outputAST);
-  }
+  path.parentPath.parentPath.insertAfter(outputASTs);
 };
 
 const objectVisitor = {
@@ -753,7 +753,7 @@ const prepareAST = (code) => {
   const ast = parse(code);
   ast.program.body = functionDeclarationsFirst(ast.program.body);
   return transform(ast,
-    [importVisitor, exportVisitor, superVisitor, staticBlockVisitor,
+    [importVisitor, exportVisitor, superVisitor,
       objectVisitor, classVisitor,
       awaitVisitor, functionVisitor, varVisitor]);
 };
