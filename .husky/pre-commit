@@ -1,1 +1,28 @@
+echo "🧪 Running pre-commit checks..."
+echo "================================"
+
+# Run linting first
+echo "🔍 Running linting..."
+npx semistandard
+
+if [ $? -ne 0 ]; then
+    echo "❌ Linting failed! Commit aborted."
+    echo "💡 Fix the linting errors and try again."
+    echo "================================"
+    exit 1
+fi
+
+# Run tests
+echo "🧪 Running tests..."
 npm test
+
+if [ $? -eq 0 ]; then
+    echo "✅ All checks passed! Proceeding with commit..."
+    echo "================================"
+    exit 0
+else
+    echo "❌ Tests failed! Commit aborted."
+    echo "💡 Fix the failing tests and try again."
+    echo "================================"
+    exit 1
+fi

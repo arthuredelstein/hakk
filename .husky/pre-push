@@ -1,22 +1,9 @@
-echo "🧪 Running smart pre-push tests..."
+echo "🧪 Running pre-push tests..."
 echo "================================"
 
-# Get the list of changed files
-CHANGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|ts|jsx|tsx)$' || true)
-
-if [ -z "$CHANGED_FILES" ]; then
-    echo "ℹ️  No JavaScript/TypeScript files changed. Skipping tests."
-    echo "================================"
-    exit 0
-fi
-
-echo "📁 Changed files:"
-echo "$CHANGED_FILES"
-echo ""
-
-# Run linting on changed files
-echo "🔍 Running linting on changed files..."
-echo "$CHANGED_FILES" | xargs npx semistandard
+# Always run full linting to catch any issues
+echo "🔍 Running linting on all files..."
+npx semistandard
 
 if [ $? -ne 0 ]; then
     echo "❌ Linting failed! Push aborted."
