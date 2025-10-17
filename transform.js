@@ -283,11 +283,9 @@ const handleMemberExpression = (path) => {
     object.type = 'Identifier';
     object.name = superClassName;
   } else {
-    // For instance methods, transform super.property to Parent.prototype.property
-    const propertyName = path.node.property.name;
-    const ast = template.ast(`${superClassName}.prototype.${propertyName}`);
-    copyLocation(path.node, ast);
-    path.replaceWith(ast);
+    // For instance methods, super.property access should return undefined
+    // because class fields are instance properties, not prototype properties
+    path.replaceWith(template.ast('undefined'));
   }
 };
 

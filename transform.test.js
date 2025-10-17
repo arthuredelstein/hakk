@@ -361,7 +361,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert super property access in instance method',
+  'convert super property access in instance method (returns undefined for class fields)',
   `class Child extends Parent {
     getValue() {
       return super.instanceProperty;
@@ -369,7 +369,25 @@ testTransform(
   }`,
   `var Child = class Child extends Parent {};
   Child.prototype.getValue = function () {
-    return Parent.prototype.instanceProperty;
+    return undefined;
+  };`);
+
+testTransform(
+  'convert super method call vs super property access (different behaviors)',
+  `class Child extends Parent {
+    testSuper() {
+      return {
+        method: super.parentMethod(),
+        property: super.instanceProperty
+      };
+    }
+  }`,
+  `var Child = class Child extends Parent {};
+  Child.prototype.testSuper = function () {
+    return {
+      method: Parent.prototype.parentMethod.call(this),
+      property: undefined
+    };
   };`);
 
 testTransform(
