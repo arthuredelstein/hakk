@@ -288,6 +288,40 @@ testTransform(
     return 'instance private method';
   };`);
 
+testTransform(
+  'convert class with computed property names',
+  `const key = 'dynamic';
+  class Example {
+    [key] = 'value';
+    ['static'] = 'static value';
+    [key]() {
+      return 'method';
+    }
+  }`,
+  `var key = 'dynamic';
+  var Example = class Example {};
+  Example.prototype[key] = 'value';
+  Example.prototype['static'] = 'static value';
+  Example.prototype[key] = function () {
+    return 'method';
+  };`);
+
+testTransform(
+  'convert class with computed static property names',
+  `const methodName = 'helper';
+  class Utils {
+    static [methodName]() {
+      return 'help';
+    }
+    static ['version'] = '1.0.0';
+  }`,
+  `var methodName = 'helper';
+  var Utils = class Utils {};
+  Utils[methodName] = function () {
+    return 'help';
+  };
+  Utils['version'] = '1.0.0';`);
+
 // ## object literals and methods
 
 testTransform(

@@ -307,20 +307,24 @@ const nodesForClass = ({ className, classBodyNodes }) => {
       if (classBodyNode.kind === 'constructor') {
         retainedNodes.push(classBodyNode);
       } else if (classBodyNode.kind === 'method') {
+        const keyExpression = classBodyNode.computed ? generate(classBodyNode.key).code : classBodyNode.key.name;
+        const target = classBodyNode.static ? className : `${className}.prototype`;
+        const propertyAccess = classBodyNode.computed ? `[${keyExpression}]` : `.${keyExpression}`;
         templateAST = template.ast(
-          `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = ${classBodyNode.async ? 'async ' : ''}function${classBodyNode.generator ? '*' : ''} () {}`
+          `${target}${propertyAccess} = ${classBodyNode.async ? 'async ' : ''}function${classBodyNode.generator ? '*' : ''} () {}`
         );
         copyLocation(classBodyNode, templateAST);
         const fun = templateAST.expression.right;
         fun.body = classBodyNode.body;
         fun.params = classBodyNode.params;
-        templateAST._removeCode = `if (${className}) { delete ${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} };`;
+        templateAST._removeCode = `if (${className}) { delete ${target}${classBodyNode.computed ? '[' + keyExpression + ']' : '.' + keyExpression} };`;
       } else if (classBodyNode.kind === 'get' ||
         classBodyNode.kind === 'set') {
-        const keyName = classBodyNode.key.name;
+        const keyExpression = classBodyNode.computed ? generate(classBodyNode.key).code : classBodyNode.key.name;
         const target = classBodyNode.static ? className : `${className}.prototype`;
+        const propertyName = classBodyNode.computed ? keyExpression : `"${keyExpression}"`;
         templateAST = template.ast(
-          `Object.defineProperty(${target}, "${keyName}", {
+          `Object.defineProperty(${target}, ${propertyName}, {
              ${classBodyNode.kind}: function () { },
              configurable: true
            });`
@@ -330,9 +334,9 @@ const nodesForClass = ({ className, classBodyNodes }) => {
         fun.body = classBodyNode.body;
         fun.params = classBodyNode.params;
         const getter = classBodyNode.kind === 'get';
-        templateAST._removeCode = `if (${className}) Object.defineProperty(${target}, "${keyName}", {
+        templateAST._removeCode = `if (${className}) Object.defineProperty(${target}, ${classBodyNode.computed ? keyExpression : '"' + keyExpression + '"'}, {
           ${classBodyNode.kind}: function (${getter ? '' : 'value'}) {
-            return this._PROPERTY_${keyName} ${getter ? '' : '= value'};
+            return this._PROPERTY_${keyExpression} ${getter ? '' : '= value'};
           },
           configurable: true
         });`;
@@ -340,14 +344,17 @@ const nodesForClass = ({ className, classBodyNodes }) => {
         throw new Error(`Unexpected ClassMethod kind ${classBodyNode.kind}`);
       }
     } else if (classBodyNode.type === 'ClassProperty') {
+      const keyExpression = classBodyNode.computed ? generate(classBodyNode.key).code : classBodyNode.key.name;
+      const target = classBodyNode.static ? className : `${className}.prototype`;
+      const propertyAccess = classBodyNode.computed ? `[${keyExpression}]` : `.${keyExpression}`;
       templateAST = template.ast(
-        `${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} = undefined;`
+        `${target}${propertyAccess} = undefined;`
       );
       copyLocation(classBodyNode, templateAST);
       if (classBodyNode.value !== null) {
         templateAST.expression.right = classBodyNode.value;
       }
-      templateAST._removeCode = `if (${className}) { delete ${className}.${classBodyNode.static ? '' : 'prototype.'}${classBodyNode.key.name} }`;
+      templateAST._removeCode = `if (${className}) { delete ${target}${classBodyNode.computed ? '[' + keyExpression + ']' : '.' + keyExpression} }`;
     } else if (classBodyNode.type === 'StaticBlock') {
       templateAST = template.ast(
         `(function () {}).call(${className})`
