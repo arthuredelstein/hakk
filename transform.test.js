@@ -6,25 +6,25 @@ const cleanString = (x) =>
   x.replace(/\s+/g, ' ');
 
 const testTransform = (name, before, after) =>
-  test(name, () => {
+  test('transform: ' + name, () => {
     expect(cleanString(prepareCode(before)))
       .toBe(cleanString(after));
   });
 
 // ## variable declarations
 
-testTransform('convert const to var', 'const x = 1;', 'var x = 1;');
+testTransform('const to var', 'const x = 1;', 'var x = 1;');
 
-testTransform('convert let to var', 'let x = 1;', 'var x = 1;');
+testTransform('let to var', 'let x = 1;', 'var x = 1;');
 
-testTransform('convert var assignment to await to two statements', 'var x = await Promise.resolve(1);', 'var x; x = await Promise.resolve(1);');
+testTransform('var assignment to await to two statements', 'var x = await Promise.resolve(1);', 'var x; x = await Promise.resolve(1);');
 
-testTransform('convert let assignment to await to two statements', 'let x = await Promise.resolve(2);', 'var x; x = await Promise.resolve(2);');
+testTransform('let assignment to await to two statements', 'let x = await Promise.resolve(2);', 'var x; x = await Promise.resolve(2);');
 
-testTransform('convert const assignment to await to two statements', 'const x = await Promise.resolve(3);', 'var x; x = await Promise.resolve(3);');
+testTransform('const assignment to await to two statements', 'const x = await Promise.resolve(3);', 'var x; x = await Promise.resolve(3);');
 
 testTransform(
-  'convert multiple variable declarations to var',
+  'multiple variable declarations to var',
   'const x = 1, y = 2, z = 3;',
   `var x = 1;
     var y = 2;
@@ -44,11 +44,11 @@ testTransform('add a layer of indirection to an async function with a variable a
 
 // ## class declarations and expressions
 
-testTransform('convert class declaration to class expression',
+testTransform('class declaration to class expression',
   'class A {}', 'var A = class A {};');
 
 testTransform(
-  'convert class method declaration to class expression',
+  'class method declaration to class expression',
   `class A {
     method1(a, b) {
       return a + b;
@@ -60,7 +60,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class field declaration to class expression',
+  'class field declaration to class expression',
   `class A {
     field1 = 3;
   }`,
@@ -75,7 +75,7 @@ testTransform(
   })(3);`);
 
 testTransform(
-  'convert class private method declaration to class expression',
+  'class private method declaration to class expression',
   `class A {
     #method1(a, b) {
       return a + b;
@@ -87,7 +87,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class private field declaration to class expression',
+  'class private field declaration to class expression',
   `class A {
   #field1 = 7;
 }`,
@@ -102,7 +102,7 @@ testTransform(
 })(7);`);
 
 testTransform(
-  'convert class extends declaration to class expression',
+  'class extends declaration to class expression',
   `class A extends B {
   constructor(b, a) {
     super(a, b);
@@ -121,7 +121,7 @@ A.prototype.method1 = function (x) {
 };`);
 
 testTransform(
-  'convert static block to IIFE call',
+  'static block to IIFE call',
   `class Counter {
     static count = 0;
     static {
@@ -159,7 +159,7 @@ testTransform(
   Config.d = 7;`);
 
 testTransform(
-  'convert static method declaration to class expression',
+  'static method declaration to class expression',
   `class Utils {
     static helper() {
       return 'help';
@@ -171,7 +171,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert static field declaration to class expression',
+  'static field declaration to class expression',
   `class Config {
     static version = '1.0.0';
   }`,
@@ -179,7 +179,7 @@ testTransform(
   Config.version = '1.0.0';`);
 
 testTransform(
-  'convert static getter declaration to class expression',
+  'static getter declaration to class expression',
   `class Data {
     static get info() {
       return { name: 'test' };
@@ -194,7 +194,7 @@ testTransform(
   });`);
 
 testTransform(
-  'convert static setter declaration to class expression',
+  'static setter declaration to class expression',
   `class Data {
     static set value(v) {
       this._value = v;
@@ -209,7 +209,7 @@ testTransform(
   });`);
 
 testTransform(
-  'convert class with mixed static and instance members',
+  'class with mixed static and instance members',
   `class Example {
     static staticField = 'static';
     instanceField = 'instance';
@@ -238,7 +238,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with private static field',
+  'class with private static field',
   `class Data {
     static #secret = 'hidden';
   }`,
@@ -246,7 +246,7 @@ testTransform(
   Data._PRIVATE_secret = 'hidden';`);
 
 testTransform(
-  'convert class with private static method',
+  'class with private static method',
   `class Utils {
     static #helper() {
       return 'private help';
@@ -258,7 +258,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with private static getter',
+  'class with private static getter',
   `class Config {
     static get #value() {
       return this._internal;
@@ -273,7 +273,7 @@ testTransform(
   });`);
 
 testTransform(
-  'convert class with private static setter',
+  'class with private static setter',
   `class Config {
     static set #value(v) {
       this._internal = v;
@@ -288,7 +288,7 @@ testTransform(
   });`);
 
 testTransform(
-  'convert class with mixed private static and instance members',
+  'class with mixed private static and instance members',
   `class Example {
     static #staticPrivate = 'static private';
     #instancePrivate = 'instance private';
@@ -317,7 +317,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with computed property names',
+  'class with computed property names',
   `const key = 'dynamic';
   class Example {
     [key] = 'value';
@@ -349,7 +349,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with computed static property names',
+  'class with computed static property names',
   `const methodName = 'helper';
   class Utils {
     static [methodName]() {
@@ -367,7 +367,7 @@ testTransform(
 // ## super keyword handling
 
 testTransform(
-  'convert super method call in instance method',
+  'super method call in instance method',
   `class Child extends Parent {
     method() {
       return super.parentMethod('arg');
@@ -379,7 +379,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert super method call in static method',
+  'super method call in static method',
   `class Child extends Parent {
     static staticMethod() {
       return super.parentStaticMethod('arg');
@@ -391,7 +391,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert super property access in static method',
+  'super property access in static method',
   `class Child extends Parent {
     static getValue() {
       return super.staticProperty;
@@ -403,7 +403,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert super property access in instance method (returns undefined for class fields)',
+  'super property access in instance method (returns undefined for class fields)',
   `class Child extends Parent {
     getValue() {
       return super.instanceProperty;
@@ -415,7 +415,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert super method call vs super property access (different behaviors)',
+  'super method call vs super property access (different behaviors)',
   `class Child extends Parent {
     testSuper() {
       return {
@@ -433,7 +433,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert super method call with multiple arguments',
+  'super method call with multiple arguments',
   `class Child extends Parent {
     method(a, b, c) {
       return super.parentMethod(a, b, c);
@@ -445,7 +445,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert super method call with no arguments',
+  'super method call with no arguments',
   `class Child extends Parent {
     method() {
       return super.parentMethod();
@@ -457,7 +457,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert super method call in async method',
+  'super method call in async method',
   `class Child extends Parent {
     async method() {
       return await super.parentMethod();
@@ -469,7 +469,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert super method call in generator method',
+  'super method call in generator method',
   `class Child extends Parent {
     *method() {
       yield super.parentMethod();
@@ -481,7 +481,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert super method call in getter',
+  'super method call in getter',
   `class Child extends Parent {
     get value() {
       return super.parentGetter();
@@ -496,7 +496,7 @@ testTransform(
   });`);
 
 testTransform(
-  'convert super method call in setter',
+  'super method call in setter',
   `class Child extends Parent {
     set value(v) {
       super.parentSetter(v);
@@ -511,7 +511,7 @@ testTransform(
   });`);
 
 testTransform(
-  'convert super method call in private method',
+  'super method call in private method',
   `class Child extends Parent {
     #privateMethod() {
       return super.parentMethod();
@@ -523,7 +523,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert super method call in private static method',
+  'super method call in private static method',
   `class Child extends Parent {
     static #privateStaticMethod() {
       return super.parentStaticMethod();
@@ -537,7 +537,7 @@ testTransform(
 // ## object literals and methods
 
 testTransform(
-  'convert object method declaration to property assignment',
+  'object method declaration to property assignment',
   `const obj = {
     method() {
       return 'hello';
@@ -549,7 +549,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert object getter declaration to Object.defineProperty',
+  'object getter declaration to Object.defineProperty',
   `const obj = {
     get value() {
       return this._value;
@@ -564,7 +564,7 @@ testTransform(
   });`);
 
 testTransform(
-  'convert object setter declaration to Object.defineProperty',
+  'object setter declaration to Object.defineProperty',
   `const obj = {
     set value(v) {
       this._value = v;
@@ -579,7 +579,7 @@ testTransform(
   });`);
 
 testTransform(
-  'convert object with computed property names',
+  'object with computed property names',
   `const key = 'dynamic';
   const obj = {
     [key]: 'value',
@@ -591,7 +591,7 @@ testTransform(
   obj['static'] = 'static value';`);
 
 testTransform(
-  'convert object with shorthand property names',
+  'object with shorthand property names',
   `const x = 1, y = 2;
   const obj = { x, y };`,
   `var x = 1;
@@ -601,7 +601,7 @@ testTransform(
   obj.y = y;`);
 
 testTransform(
-  'convert object with mixed property types',
+  'object with mixed property types',
   `const name = 'test';
   const obj = {
     regular: 'value',
@@ -639,7 +639,7 @@ testTransform(
 // ## function types
 
 testTransform(
-  'convert generator function declaration to function expression',
+  'generator function declaration to function expression',
   `function* generator() {
     yield 1;
     yield 2;
@@ -651,7 +651,7 @@ testTransform(
   var generator = (...args) => generator_hakk_(...args);`);
 
 testTransform(
-  'convert async generator function declaration to function expression',
+  'async generator function declaration to function expression',
   `async function* asyncGenerator() {
     yield await Promise.resolve(1);
   }`,
@@ -661,7 +661,7 @@ testTransform(
   var asyncGenerator = (...args) => asyncGenerator_hakk_(...args);`);
 
 testTransform(
-  'convert arrow function with different parameter patterns',
+  'arrow function with different parameter patterns',
   `const noParams = () => 'hello';
   const singleParam = x => x * 2;
   const multipleParams = (a, b) => a + b;
@@ -676,7 +676,7 @@ testTransform(
   var restParams = (...args) => restParams_hakk_(...args);`);
 
 testTransform(
-  'convert function expression with name to wrapper',
+  'function expression with name to wrapper',
   `const namedFunc = function myFunction() {
     return 'named';
   };`,
@@ -686,7 +686,7 @@ testTransform(
   var namedFunc = (...args) => namedFunc_hakk_(...args);`);
 
 testTransform(
-  'convert async arrow function to wrapper',
+  'async arrow function to wrapper',
   `const asyncArrow = async () => {
     return await Promise.resolve('async');
   };`,
@@ -696,7 +696,7 @@ testTransform(
   var asyncArrow = (...args) => asyncArrow_hakk_(...args);`);
 
 testTransform(
-  'convert generator arrow function to wrapper',
+  'generator arrow function to wrapper',
   `const genArrow = function* () {
     yield 1;
   };`,
@@ -708,7 +708,7 @@ testTransform(
 // ## Private Field Access
 
 testTransform(
-  'convert private field access in instance method',
+  'private field access in instance method',
   `class A {
     #field = 42;
     getValue() {
@@ -729,7 +729,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert private field access in static method',
+  'private field access in static method',
   `class A {
     static #field = 100;
     static getValue() {
@@ -743,7 +743,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert private field access with assignment',
+  'private field access with assignment',
   `class A {
     #field = 0;
     increment() {
@@ -764,7 +764,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert private field access in getter',
+  'private field access in getter',
   `class A {
     #field = 'secret';
     get secret() {
@@ -788,7 +788,7 @@ testTransform(
   });`);
 
 testTransform(
-  'convert private field access in setter',
+  'private field access in setter',
   `class A {
     #field = null;
     set value(val) {
@@ -812,7 +812,7 @@ testTransform(
   });`);
 
 testTransform(
-  'convert private field access in constructor',
+  'private field access in constructor',
   `class A {
     #field = 10;
     constructor(value) {
@@ -834,7 +834,7 @@ testTransform(
   })(10);`);
 
 testTransform(
-  'convert private field access with complex expressions',
+  'private field access with complex expressions',
   `class A {
     #field = [];
     addItem(item) {
@@ -864,7 +864,7 @@ testTransform(
   });`);
 
 testTransform(
-  'convert private field access in static block',
+  'private field access in static block',
   `class A {
     static #field = 0;
     static {
@@ -878,7 +878,7 @@ testTransform(
   }).call(A);`);
 
 testTransform(
-  'convert private field access with multiple private fields',
+  'private field access with multiple private fields',
   `class A {
     #field1 = 1;
     #field2 = 2;
@@ -910,7 +910,7 @@ testTransform(
 // ## Object Literal Edge Cases
 
 testTransform(
-  'convert nested object with methods (nested objects not transformed)',
+  'nested object with methods (nested objects not transformed)',
   `const config = {
     database: {
       host: 'localhost',
@@ -928,7 +928,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert object with method referencing this',
+  'object with method referencing this',
   `const counter = {
     value: 0,
     increment() {
@@ -950,7 +950,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert object with complex computed properties (now supported)',
+  'object with complex computed properties (now supported)',
   `const key1 = 'prop1';
   const key2 = 'prop2';
   const obj = {
@@ -966,7 +966,7 @@ testTransform(
   obj['static_' + key2] = 'static_combined';`);
 
 testTransform(
-  'convert object with mixed property types and methods (Symbol.iterator now supported)',
+  'object with mixed property types and methods (Symbol.iterator now supported)',
   `const api = {
     baseUrl: 'https://api.example.com',
     version: 1,
@@ -1000,7 +1000,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert object with nested computed properties (nested objects not transformed)',
+  'object with nested computed properties (nested objects not transformed)',
   `const key = 'nested';
   const obj = {
     [key]: {
@@ -1020,7 +1020,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert object with method calling other methods',
+  'object with method calling other methods',
   `const calculator = {
     add(a, b) {
       return a + b;
@@ -1044,7 +1044,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert object with getter and setter using private-like pattern',
+  'object with getter and setter using private-like pattern',
   `const store = {
     _data: {},
     get(key) {
@@ -1070,7 +1070,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert object with async methods and complex expressions',
+  'object with async methods and complex expressions',
   `const service = {
     timeout: 5000,
     async request(url, options = {}) {
@@ -1110,7 +1110,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert object with generator methods',
+  'object with generator methods',
   `const sequence = {
     start: 0,
     step: 1,
@@ -1145,7 +1145,7 @@ testTransform(
 
 // ## `import()` calls
 
-testTransform('convert import statement to await import',
+testTransform('import statement to await import',
   'var {test} = await import("./test.js");',
   'var test; ({ test } = await __import("./test.js"));');
 
@@ -1153,48 +1153,48 @@ testTransform('convert import statement to await import',
 // Testing all cases in
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#syntax
 
-testTransform("convert `import defaultExport from 'module-name'` to await import",
+testTransform("`import defaultExport from 'module-name'` to await import",
   "import defaultExport from 'module-name';",
   "var defaultExport; ({ default: defaultExport } = await __import('module-name'));");
 
-testTransform("convert `import * as name from 'module-name'` to await import",
+testTransform("` import * as name from 'module-name'` to await import",
   "import * as name from 'module-name';",
   "var name; name = await __import('module-name');");
 
-testTransform("convert `import { export1 } from 'module-name'` to await import",
+testTransform("` import { export1 } from 'module-name'` to await import",
   "import { export1 } from 'module-name';",
   "var export1; ({ export1 } = await __import('module-name'));");
 
-testTransform("convert `import { export1 as alias1 } from 'module-name'` to await import",
+testTransform("` import { export1 as alias1 } from 'module-name'` to await import",
   "import { export1 as alias1 } from 'module-name';",
   "var alias1; ({ export1: alias1 } = await __import('module-name'));");
 
-testTransform("convert `import { default as alias } from 'module-name'` to await import",
+testTransform("` import { default as alias } from 'module-name'` to await import",
   "import { default as alias } from 'module-name';",
   "var alias; ({ default: alias } = await __import('module-name'));");
 
-testTransform("convert `import { export1, export2 } from 'module-name'` to await import",
+testTransform("` import { export1, export2 } from 'module-name'` to await import",
   "import { export1, export2 } from 'module-name';",
   "var export1; var export2; ({ export1, export2 } = await __import('module-name'));");
 
-testTransform("convert `import { export1, export2 as alias2 } from 'module-name'` to await import",
+testTransform("` import { export1, export2 as alias2 } from 'module-name'` to await import",
   "import { export1, export2 as alias2 } from 'module-name';",
   "var export1; var alias2; ({ export1, export2: alias2 } = await __import('module-name'));");
 
-testTransform("convert `import { 'string name' as alias } from 'module-name'` to await import",
+testTransform("` import { 'string name' as alias } from 'module-name'` to await import",
   "import { 'string name' as alias } from 'module-name';",
   "var alias; ({ 'string name': alias } = await __import('module-name'));");
 
-testTransform("convert `import defaultExport, { export1 } from 'module-name'` to await import",
+testTransform("` import defaultExport, { export1 } from 'module-name'` to await import",
   "import defaultExport, { export1 } from 'module-name';",
   "var defaultExport; var export1; ({ default: defaultExport, export1 } = await __import('module-name'));");
 
-testTransform("convert `import defaultExport, * as name from 'module-name'` to await import",
+testTransform("` import defaultExport, * as name from 'module-name'` to await import",
   "import defaultExport, * as name from 'module-name';",
   `var name; name = await __import('module-name');
   var { default: defaultExport } = name;`);
 
-testTransform("convert `import 'module-name'` to await import",
+testTransform("` import 'module-name'` to await import",
   "import 'module-name';",
   "await __import('module-name');");
 
@@ -1204,14 +1204,14 @@ testTransform("convert `import 'module-name'` to await import",
 
 // ### Exporting declarations
 
-testTransform('convert export let declarations to module.exports',
+testTransform('export let declarations to module.exports',
   'export let name1, name2',
   `var name1;
    var name2;
    module.exports.name1 = name1;
    module.exports.name2 = name2;`);
 
-testTransform('convert export const declarations to module.exports',
+testTransform('export const declarations to module.exports',
   'export const name1 = 1, name2 = 2;',
   `var name1 = 1;
    var name2 = 2;
@@ -1219,34 +1219,34 @@ testTransform('convert export const declarations to module.exports',
    module.exports.name2 = name2;`);
 
 testTransform(
-  'convert export function declarations to module.exports',
+  'export function declarations to module.exports',
   'export function functionName() { /* … */ }',
   `var functionName_hakk_ = function functionName() {/* … */};
   var functionName = (...args) => functionName_hakk_(...args);
   module.exports.functionName = functionName;`);
 
 testTransform(
-  'convert export class declarations to module.exports',
+  'export class declarations to module.exports',
   'export class ClassName { /* … */ }',
   `var ClassName = class ClassName {/* … */};
   module.exports.ClassName = ClassName;`);
 
 testTransform(
-  'convert export function* declarations to module.exports',
+  'export function* declarations to module.exports',
   'export function* generatorFunctionName() { /* … */ }',
   `var generatorFunctionName_hakk_ = function* generatorFunctionName() {/* … */};
   var generatorFunctionName  = (...args) => generatorFunctionName_hakk_(...args);
   module.exports.generatorFunctionName = generatorFunctionName;`);
 
 testTransform(
-  'convert export const { name1, name2: bar } = o; to module.exports',
+  'export const { name1, name2: bar } = o; to module.exports',
   'export const { name1, name2: bar } = o;',
   `var { name1, name2: bar } = o;
    module.exports.name1 = o.name1;
    module.exports.bar = o.name2;`);
 
 testTransform(
-  'convert export const [ name1, name2 ] = array; to module.exports',
+  'export const [ name1, name2 ] = array; to module.exports',
   'export const [ name1, name2 ] = array;',
   `var [name1, name2] = array;
    module.exports.name1 = array[0];
@@ -1255,66 +1255,66 @@ testTransform(
 // ### Export list
 
 testTransform(
-  'convert export list statements to module.exports',
+  'export list statements to module.exports',
   'let x = 1, y = 2; export { x, y }',
   'var x = 1; var y = 2; module.exports.x = x; module.exports.y = y;');
 
 testTransform(
-  'convert export list statements with aliases to module.exports',
+  'export list statements with aliases to module.exports',
   'let x = 1, y = 2; export { x as name1, y as name2}',
   'var x = 1; var y = 2; module.exports.name1 = x; module.exports.name2 = y;');
 
 testTransform(
-  'convert export list statements with string aliases to module.exports',
+  'export list statements with string aliases to module.exports',
   'let x = 1, y = 2; export { x as "name1", y as "name2"}',
   'var x = 1; var y = 2; module.exports[\'name1\'] = x; module.exports[\'name2\'] = y;');
 
 testTransform(
-  'convert export list statements with default alias to module.exports',
+  'export list statements with default alias to module.exports',
   'let x = 1; export { x as default}',
   'var x = 1; module.exports.default = x;');
 
 // ### Default exports
 
 testTransform(
-  'convert export default expression to module.exports',
+  'export default expression to module.exports',
   'export default expression;',
   'module.exports.default = expression;');
 
 testTransform(
-  'convert export default function declarations to module.exports',
+  'export default function declarations to module.exports',
   'export default function functionName() { /* … */ }',
   'module.exports.default = function functionName() {/* … */};');
 
 testTransform(
-  'convert export default class declarations to module.exports',
+  'export default class declarations to module.exports',
   'export default class ClassName { /* … */ }',
   'module.exports.default = class ClassName {/* … */};');
 
 testTransform(
-  'convert export default named function* declarations to module.exports',
+  'export default named function* declarations to module.exports',
   'export default function* generatorFunctionName() { /* … */ }',
   'module.exports.default = function* generatorFunctionName() {/* … */};');
 
 testTransform(
-  'convert export default function declarations to module.exports',
+  'export default function declarations to module.exports',
   'export default function () { /* … */ }',
   'module.exports.default = function () {/* … */};');
 
 testTransform(
-  'convert export default class declarations to module.exports',
+  'export default class declarations to module.exports',
   'export default class { /* … */ }',
   'module.exports.default = class {/* … */};');
 
 testTransform(
-  'convert export default anonymous function* declarations to module.exports',
+  'export default anonymous function* declarations to module.exports',
   'export default function* () { /* … */ }',
   'module.exports.default = function* () {/* … */};');
 
 // ### Aggregating modules
 
 testTransform(
-  'convert export * from "my-module-name" to module.exports',
+  'export * from "my-module-name" to module.exports',
   'export * from "my-module-name"',
   `await async function () {
     const importedObject = await __import('my-module-name');
@@ -1327,7 +1327,7 @@ testTransform(
   }();`);
 
 testTransform(
-  'convert export * as name1 from "module-name" to module.exports',
+  'export * as name1 from "module-name" to module.exports',
   'export * as name1 from "module-name";',
   `await async function () {
     const importedObject = await __import('module-name');
@@ -1340,7 +1340,7 @@ testTransform(
   }();`);
 
 testTransform(
-  'convert export { name1, /* …, */ nameN } from "module-name" to module.exports',
+  'export { name1, /* …, */ nameN } from "module-name" to module.exports',
   'export { name1, /* …, */ nameN } from "module-name";',
   `await async function () {
     const importedObject = await __import('module-name');
@@ -1349,7 +1349,7 @@ testTransform(
   }();`);
 
 testTransform(
-  'convert export { import1 as name1, import2 as name2, /* …, */ nameN } from "module-name" to module.exports',
+  'export { import1 as name1, import2 as name2, /* …, */ nameN } from "module-name" to module.exports',
   'export { import1 as name1, import2 as name2, /* …, */ nameN } from "module-name";',
   `await async function () {
     const importedObject = await __import('module-name');
@@ -1359,7 +1359,7 @@ testTransform(
 }();`);
 
 testTransform(
-  'convert export { default, /* …, */ } from "module-name" to module.exports',
+  'export { default, /* …, */ } from "module-name" to module.exports',
   'export { default, /* …, */ } from "module-name";',
   `await async function () {
     const importedObject = await __import('module-name');
@@ -1369,17 +1369,17 @@ testTransform(
 // ## Import/Export Edge Cases
 
 testTransform(
-  'convert import with default and named imports',
+  'import with default and named imports',
   'import defaultExport, { named1, named2 as alias } from "module";',
   'var defaultExport; var named1; var alias; ({ default: defaultExport, named1, named2: alias } = await __import(\'module\'));');
 
 testTransform(
-  'convert import with string literal module names',
+  'import with string literal module names',
   'import { utils } from "./utils.js";',
   'var utils; ({ utils } = await __import(\'./utils.js\'));');
 
 testTransform(
-  'convert export with simple destructuring patterns',
+  'export with simple destructuring patterns',
   'export const { a, b, c } = obj;',
   `var { a, b, c } = obj;
 module.exports.a = obj.a;
@@ -1387,7 +1387,7 @@ module.exports.b = obj.b;
 module.exports.c = obj.c;`);
 
 testTransform(
-  'convert export with array destructuring',
+  'export with array destructuring',
   'export const [first, second, ...others] = array;',
   `var [first, second, ...others] = array;
 module.exports.first = array[0];
@@ -1395,67 +1395,67 @@ module.exports.second = array[1];
 module.exports.undefined = array[2];`);
 
 testTransform(
-  'convert export with function calls as values',
+  'export with function calls as values',
   'export const result = computeValue();',
   `var result = computeValue();
 module.exports.result = result;`);
 
 testTransform(
-  'convert export with template literals as values',
+  'export with template literals as values',
   // eslint-disable-next-line no-template-curly-in-string
   'export const message = `Hello ${name}`;',
   `var message = \`Hello \${name}\`;
 module.exports.message = message;`);
 
 testTransform(
-  'convert export with complex expressions',
+  'export with complex expressions',
   'export const sum = a + b * c;',
   `var sum = a + b * c;
 module.exports.sum = sum;`);
 
 testTransform(
-  'convert export with class instantiation',
+  'export with class instantiation',
   'export const instance = new MyClass();',
   `var instance = new MyClass();
 module.exports.instance = instance;`);
 
 testTransform(
-  'convert export with conditional expressions',
+  'export with conditional expressions',
   'export const value = condition ? a : b;',
   `var value = condition ? a : b;
 module.exports.value = value;`);
 
 testTransform(
-  'convert export with logical operators',
+  'export with logical operators',
   'export const result = a && b || c;',
   `var result = a && b || c;
 module.exports.result = result;`);
 
 testTransform(
-  'convert export with method calls',
+  'export with method calls',
   'export const processed = data.map(x => x * 2);',
   `var processed = data.map(x => x * 2);
 module.exports.processed = processed;`);
 
 testTransform(
-  'convert export with async function calls',
+  'export with async function calls',
   'export const result = await fetchData();',
   'var result; result = await fetchData(); module.exports.result = result;');
 
 testTransform(
-  'convert export with generator function calls',
+  'export with generator function calls',
   'export const sequence = generateSequence();',
   `var sequence = generateSequence();
 module.exports.sequence = sequence;`);
 
 testTransform(
-  'convert export with array spread',
+  'export with array spread',
   'export const combined = [...arr1, ...arr2];',
   `var combined = [...arr1, ...arr2];
 module.exports.combined = combined;`);
 
 testTransform(
-  'convert export with object spread (preserved as-is)',
+  'export with object spread (preserved as-is)',
   'export const merged = { ...obj1, ...obj2 };',
   `var merged = {
   ...obj1,
@@ -1464,7 +1464,7 @@ testTransform(
 module.exports.merged = merged;`);
 
 testTransform(
-  'convert export with mixed object properties and spread (preserved as-is)',
+  'export with mixed object properties and spread (preserved as-is)',
   'export const combined = { a: 1, ...obj1, b: 2 };',
   `var combined = {
   a: 1,
@@ -1474,50 +1474,50 @@ testTransform(
 module.exports.combined = combined;`);
 
 testTransform(
-  'convert export with optional chaining',
+  'export with optional chaining',
   'export const value = obj?.prop?.method?.();',
   `var value = obj?.prop?.method?.();
 module.exports.value = value;`);
 
 testTransform(
-  'convert export with nullish coalescing',
+  'export with nullish coalescing',
   'export const result = value ?? defaultValue;',
   `var result = value ?? defaultValue;
 module.exports.result = result;`);
 
 testTransform(
-  'convert export with BigInt literals',
+  'export with BigInt literals',
   'export const bigNumber = 123n;',
   `var bigNumber = 123n;
 module.exports.bigNumber = bigNumber;`);
 
 testTransform(
-  'convert export with numeric separators',
+  'export with numeric separators',
   'export const largeNumber = 1_000_000;',
   `var largeNumber = 1_000_000;
 module.exports.largeNumber = largeNumber;`);
 
 testTransform(
-  'convert export with regex literals',
+  'export with regex literals',
   'export const pattern = /test/gi;',
   `var pattern = /test/gi;
 module.exports.pattern = pattern;`);
 
 testTransform(
-  'convert export with tagged template literals',
+  'export with tagged template literals',
   // eslint-disable-next-line no-template-curly-in-string
   'export const html = html`<div>${content}</div>`;',
   // eslint-disable-next-line no-template-curly-in-string
   'var html = html`<div>${content}</div>`; module.exports.html = html;');
 
 testTransform(
-  'convert export with complex nested expressions',
+  'export with complex nested expressions',
   'export const result = obj.method({ a: 1, b: [2, 3] }).filter(x => x > 1);',
   `var result = obj.method({ a: 1, b: [2, 3] }).filter(x => x > 1);
 module.exports.result = result;`);
 
 testTransform(
-  'convert export with multiple variable declarations',
+  'export with multiple variable declarations',
   'export const a = 1, b = 2, c = 3;',
   `var a = 1;
 var b = 2;
@@ -1527,7 +1527,7 @@ module.exports.b = b;
 module.exports.c = c;`);
 
 testTransform(
-  'convert export with mixed declaration types',
+  'export with mixed declaration types',
   'export let x = 1; export const y = 2;',
   `var x = 1;
 module.exports.x = x;
@@ -1535,20 +1535,20 @@ var y = 2;
 module.exports.y = y;`);
 
 testTransform(
-  'convert export with computed property names',
+  'export with computed property names',
   'export const { [key]: value } = obj;',
   `var { [key]: value } = obj;
 module.exports.value = obj.key;`);
 
 testTransform(
-  'convert export with default values in destructuring',
+  'export with default values in destructuring',
   'export const { a = 1, b = 2 } = obj;',
   `var { a = 1, b = 2 } = obj;
 module.exports.undefined = obj.a;
 module.exports.undefined = obj.b;`);
 
 testTransform(
-  'convert export with nested destructuring',
+  'export with nested destructuring',
   'export const { user: { name, age } } = data;',
   `var { user: { name, age } } = data;
 module.exports.undefined = data.user;`);
@@ -1556,7 +1556,7 @@ module.exports.undefined = data.user;`);
 // ## function edge cases
 
 testTransform(
-  'convert function with complex parameter destructuring',
+  'function with complex parameter destructuring',
   `function complexParams({ a, b = 1 }, [c, d = 2], ...rest) {
     return a + b + c + d + rest.length;
   }`,
@@ -1566,7 +1566,7 @@ testTransform(
   var complexParams = (...args) => complexParams_hakk_(...args);`);
 
 testTransform(
-  'convert function with default parameters and rest parameters',
+  'function with default parameters and rest parameters',
   `function withDefaults(a = 1, b = 2, ...c) {
     return a + b + c.length;
   }`,
@@ -1576,7 +1576,7 @@ testTransform(
   var withDefaults = (...args) => withDefaults_hakk_(...args);`);
 
 testTransform(
-  'convert function with complex return statement',
+  'function with complex return statement',
   `function complexReturn() {
     return {
       value: 42,
@@ -1592,7 +1592,7 @@ testTransform(
   var complexReturn = (...args) => complexReturn_hakk_(...args);`);
 
 testTransform(
-  'convert function with nested function declarations',
+  'function with nested function declarations',
   `function outer() {
     function inner() {
       return 'nested';
@@ -1608,7 +1608,7 @@ testTransform(
   var outer = (...args) => outer_hakk_(...args);`);
 
 testTransform(
-  'convert function with this binding and call/apply',
+  'function with this binding and call/apply',
   `function boundFunction() {
     return this.value;
   }`,
@@ -1618,7 +1618,7 @@ testTransform(
   var boundFunction = (...args) => boundFunction_hakk_(...args);`);
 
 testTransform(
-  'convert function with try-catch-finally',
+  'function with try-catch-finally',
   `function withErrorHandling() {
     try {
       throw new Error('test');
@@ -1640,7 +1640,7 @@ testTransform(
   var withErrorHandling = (...args) => withErrorHandling_hakk_(...args);`);
 
 testTransform(
-  'convert function with switch statement',
+  'function with switch statement',
   `function withSwitch(value) {
     switch (value) {
       case 1: return 'one';
@@ -1658,7 +1658,7 @@ testTransform(
   var withSwitch = (...args) => withSwitch_hakk_(...args);`);
 
 testTransform(
-  'convert function with labeled statements',
+  'function with labeled statements',
   `function withLabels() {
     outer: for (let i = 0; i < 3; i++) {
       inner: for (let j = 0; j < 3; j++) {
@@ -1676,7 +1676,7 @@ testTransform(
   var withLabels = (...args) => withLabels_hakk_(...args);`);
 
 testTransform(
-  'convert function with yield expressions (generator)',
+  'function with yield expressions (generator)',
   `function* generatorWithYield() {
     yield 1;
     yield 2;
@@ -1690,7 +1690,7 @@ testTransform(
   var generatorWithYield = (...args) => generatorWithYield_hakk_(...args);`);
 
 testTransform(
-  'convert function with await expressions (async)',
+  'function with await expressions (async)',
   `async function asyncWithAwait() {
     const result = await Promise.resolve(42);
     return result * 2;
@@ -1702,7 +1702,7 @@ testTransform(
   var asyncWithAwait = (...args) => asyncWithAwait_hakk_(...args);`);
 
 testTransform(
-  'convert function with class instantiation',
+  'function with class instantiation',
   `function createInstance() {
     class TestClass {
       constructor(value) {
@@ -1722,7 +1722,7 @@ testTransform(
   var createInstance = (...args) => createInstance_hakk_(...args);`);
 
 testTransform(
-  'convert function with template literals and tagged templates',
+  'function with template literals and tagged templates',
   `function withTemplates(name, count) {
     const regular = \`Hello \${name}, count is \${count}\`;
     const tagged = String.raw\`Path: \${name}/file.txt\`;
@@ -1736,7 +1736,7 @@ testTransform(
   var withTemplates = (...args) => withTemplates_hakk_(...args);`);
 
 testTransform(
-  'convert function with object and array patterns',
+  'function with object and array patterns',
   `function withPatterns({ x, y }, [a, b]) {
     return { x, y, a, b };
   }`,
@@ -1746,7 +1746,7 @@ testTransform(
   var withPatterns = (...args) => withPatterns_hakk_(...args);`);
 
 testTransform(
-  'convert function with optional chaining and nullish coalescing',
+  'function with optional chaining and nullish coalescing',
   `function withModernOps(obj) {
     const value = obj?.nested?.value ?? 'default';
     return value;
@@ -1758,7 +1758,7 @@ testTransform(
   var withModernOps = (...args) => withModernOps_hakk_(...args);`);
 
 testTransform(
-  'convert function with logical assignment operators',
+  'function with logical assignment operators',
   `function withLogicalAssign(obj) {
     obj.value ||= 'default';
     obj.count ??= 0;
@@ -1774,7 +1774,7 @@ testTransform(
   var withLogicalAssign = (...args) => withLogicalAssign_hakk_(...args);`);
 
 testTransform(
-  'convert function with private class fields access (not supported outside class)',
+  'function with private class fields access (not supported outside class)',
   `function accessPrivateFields(instance) {
     return instance.privateField;
   }`,
@@ -1784,7 +1784,7 @@ testTransform(
   var accessPrivateFields = (...args) => accessPrivateFields_hakk_(...args);`);
 
 testTransform(
-  'convert function with static class members access',
+  'function with static class members access',
   `function accessStaticMembers(Class) {
     return Class.staticMethod() + Class.staticField;
   }`,
@@ -1794,7 +1794,7 @@ testTransform(
   var accessStaticMembers = (...args) => accessStaticMembers_hakk_(...args);`);
 
 testTransform(
-  'convert function with import.meta usage (transformed to __import.meta)',
+  'function with import.meta usage (transformed to __import.meta)',
   `function useImportMeta() {
     return import.meta.url;
   }`,
@@ -1804,7 +1804,7 @@ testTransform(
   var useImportMeta = (...args) => useImportMeta_hakk_(...args);`);
 
 testTransform(
-  'convert function with BigInt and numeric separators',
+  'function with BigInt and numeric separators',
   `function withBigInt() {
     const big = 123_456_789n;
     const regular = 1_000_000;
@@ -1818,7 +1818,7 @@ testTransform(
   var withBigInt = (...args) => withBigInt_hakk_(...args);`);
 
 testTransform(
-  'convert function with await expressions (async function)',
+  'function with await expressions (async function)',
   `async function withAwait() {
     const result = await Promise.resolve(42);
     return result;
@@ -1832,7 +1832,7 @@ testTransform(
 // ## class inheritance edge cases
 
 testTransform(
-  'convert simple class inheritance',
+  'simple class inheritance',
   `class Animal {
     constructor(name) {
       this.name = name;
@@ -1861,7 +1861,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with super constructor call',
+  'class with super constructor call',
   `class Parent {
     constructor(value) {
       this.value = value;
@@ -1887,7 +1887,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with super method call in constructor',
+  'class with super method call in constructor',
   `class Base {
     init() {
       this.initialized = true;
@@ -1912,7 +1912,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with static inheritance',
+  'class with static inheritance',
   `class Parent {
     static getType() {
       return 'parent';
@@ -1934,7 +1934,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with private field inheritance',
+  'class with private field inheritance',
   `class Parent {
     #privateField = 'parent';
     getPrivate() {
@@ -1974,7 +1974,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with instance field inheritance',
+  'class with instance field inheritance',
   `class Parent {
     parentField = 'parent';
   }
@@ -2002,7 +2002,7 @@ testTransform(
   })('child');`);
 
 testTransform(
-  'convert class with static field inheritance',
+  'class with static field inheritance',
   `class Parent {
     static parentStatic = 'parent';
   }
@@ -2016,7 +2016,7 @@ testTransform(
   Child.childStatic = 'child';`);
 
 testTransform(
-  'convert class with getter/setter inheritance',
+  'class with getter/setter inheritance',
   `class Parent {
     get value() {
       return this._value;
@@ -2053,7 +2053,7 @@ testTransform(
   });`);
 
 testTransform(
-  'convert class with method overriding and super calls',
+  'class with method overriding and super calls',
   `class Parent {
     method() {
       return 'parent';
@@ -2075,7 +2075,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with static method inheritance',
+  'class with static method inheritance',
   `class Parent {
     static create() {
       return new this();
@@ -2097,7 +2097,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with computed property names in inheritance',
+  'class with computed property names in inheritance',
   `class Parent {
     ['parent' + 'Method']() {
       return 'parent';
@@ -2119,7 +2119,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with async method inheritance',
+  'class with async method inheritance',
   `class Parent {
     async parentAsync() {
       return 'parent';
@@ -2141,7 +2141,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with generator method inheritance',
+  'class with generator method inheritance',
   `class Parent {
     *parentGen() {
       yield 'parent';
@@ -2163,7 +2163,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with private method inheritance',
+  'class with private method inheritance',
   `class Parent {
     #privateMethod() {
       return 'parent private';
@@ -2197,7 +2197,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with static block inheritance',
+  'class with static block inheritance',
   `class Parent {
     static parentStatic = 'parent';
     static {
@@ -2223,7 +2223,7 @@ testTransform(
   }).call(Child);`);
 
 testTransform(
-  'convert class with multiple inheritance levels',
+  'class with multiple inheritance levels',
   `class GrandParent {
     grandParentMethod() {
       return 'grandparent';
@@ -2255,7 +2255,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with abstract-like pattern',
+  'class with abstract-like pattern',
   `class AbstractBase {
     constructor() {
       if (this.constructor === AbstractBase) {
@@ -2288,7 +2288,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with mixin-like pattern',
+  'class with mixin-like pattern',
   `const TimestampMixin = (Base) => class extends Base {
     getTimestamp() {
       return Date.now();
@@ -2322,7 +2322,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with interface-like pattern',
+  'class with interface-like pattern',
   `class Drawable {
     draw() {
       throw new Error('draw method must be implemented');
@@ -2353,7 +2353,7 @@ testTransform(
   };`);
 
 testTransform(
-  'convert class with complex super property access',
+  'class with complex super property access',
   `class Parent {
     static staticProp = 'parent static';
     instanceProp = 'parent instance';
@@ -2401,28 +2401,28 @@ testTransform(
 // ## Variable Declaration Edge Cases
 
 testTransform(
-  'convert multiple const declarations to separate var declarations',
+  'multiple const declarations to separate var declarations',
   'const a = 1, b = 2, c = 3;',
   `var a = 1;
 var b = 2;
 var c = 3;`);
 
 testTransform(
-  'convert multiple let declarations to separate var declarations',
+  'multiple let declarations to separate var declarations',
   'let x = 1, y = 2, z = 3;',
   `var x = 1;
 var y = 2;
 var z = 3;`);
 
 testTransform(
-  'convert multiple var declarations to separate var declarations',
+  'multiple var declarations to separate var declarations',
   'var p = 1, q = 2, r = 3;',
   `var p = 1;
 var q = 2;
 var r = 3;`);
 
 testTransform(
-  'convert object destructuring with simple properties',
+  'object destructuring with simple properties',
   'const { a, b, c } = obj;',
   `var {
   a,
@@ -2431,12 +2431,12 @@ testTransform(
 } = obj;`);
 
 testTransform(
-  'convert array destructuring with simple elements',
+  'array destructuring with simple elements',
   'let [x, y, z] = array;',
   'var [x, y, z] = array;');
 
 testTransform(
-  'convert object destructuring with renamed properties',
+  'object destructuring with renamed properties',
   'var { name: userName, age: userAge, id: userId } = person;',
   `var {
   name: userName,
@@ -2445,7 +2445,7 @@ testTransform(
 } = person;`);
 
 testTransform(
-  'convert nested object destructuring',
+  'nested object destructuring',
   'const { a: { b: { c } } } = nested;',
   `var {
   a: {
@@ -2456,12 +2456,12 @@ testTransform(
 } = nested;`);
 
 testTransform(
-  'convert array destructuring with rest operator',
+  'array destructuring with rest operator',
   'let [first, second, ...rest] = items;',
   'var [first, second, ...rest] = items;');
 
 testTransform(
-  'convert object destructuring with rest operator',
+  'object destructuring with rest operator',
   'const { name, age, ...otherProps } = person;',
   `var {
   name,
@@ -2470,7 +2470,7 @@ testTransform(
 } = person;`);
 
 testTransform(
-  'convert object destructuring with computed properties',
+  'object destructuring with computed properties',
   'var { [key]: value, [getKey()]: result } = obj;',
   `var {
   [key]: value,
@@ -2478,7 +2478,7 @@ testTransform(
 } = obj;`);
 
 testTransform(
-  'convert object destructuring with default values',
+  'object destructuring with default values',
   'const { a = 1, b = 2, c = 3 } = obj;',
   `var {
   a = 1,
@@ -2487,12 +2487,12 @@ testTransform(
 } = obj;`);
 
 testTransform(
-  'convert array destructuring with default values',
+  'array destructuring with default values',
   'let [x = 0, y = 0, z = 0] = array;',
   'var [x = 0, y = 0, z = 0] = array;');
 
 testTransform(
-  'convert mixed destructuring with defaults and rest',
+  'mixed destructuring with defaults and rest',
   'var { name = "unknown", age = 0, ...rest } = person;',
   `var {
   name = "unknown",
@@ -2501,7 +2501,7 @@ testTransform(
 } = person;`);
 
 testTransform(
-  'convert complex nested destructuring with defaults',
+  'complex nested destructuring with defaults',
   'const { user: { name = "guest", settings: { theme = "light" } } } = data;',
   `var {
   user: {
@@ -2513,7 +2513,7 @@ testTransform(
 } = data;`);
 
 testTransform(
-  'convert array destructuring with mixed patterns',
+  'array destructuring with mixed patterns',
   'let [first, { name, age }, ...others] = items;',
   `var [first, {
   name,
@@ -2521,7 +2521,7 @@ testTransform(
 }, ...others] = items;`);
 
 testTransform(
-  'convert object destructuring with string keys',
+  'object destructuring with string keys',
   'const { "string-key": stringValue, \'another-key\': anotherValue } = obj;',
   `var {
   "string-key": stringValue,
@@ -2529,7 +2529,7 @@ testTransform(
 } = obj;`);
 
 testTransform(
-  'convert destructuring with function calls as defaults',
+  'destructuring with function calls as defaults',
   'var { name = getName(), age = getAge() } = person;',
   `var {
   name = getName(),
@@ -2537,7 +2537,7 @@ testTransform(
 } = person;`);
 
 testTransform(
-  'convert destructuring with complex expressions as defaults',
+  'destructuring with complex expressions as defaults',
   'let { x = a + b, y = c * d } = obj;',
   `var {
   x = a + b,
@@ -2545,7 +2545,7 @@ testTransform(
 } = obj;`);
 
 testTransform(
-  'convert destructuring with template literals as defaults',
+  'destructuring with template literals as defaults',
   // eslint-disable-next-line no-template-curly-in-string
   'const { message = `Hello ${name}` } = data;',
   `var {
@@ -2553,7 +2553,7 @@ testTransform(
 } = data;`);
 
 testTransform(
-  'convert destructuring with array patterns in objects',
+  'destructuring with array patterns in objects',
   'var { coordinates: [x, y], dimensions: [width, height] } = shape;',
   `var {
   coordinates: [x, y],
@@ -2561,7 +2561,7 @@ testTransform(
 } = shape;`);
 
 testTransform(
-  'convert destructuring with object patterns in arrays',
+  'destructuring with object patterns in arrays',
   'let [{ name, age }, { title, content }] = items;',
   `var [{
   name,
