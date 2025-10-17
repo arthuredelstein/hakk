@@ -322,6 +322,158 @@ testTransform(
   };
   Utils['version'] = '1.0.0';`);
 
+// ## super keyword handling
+
+testTransform(
+  'convert super method call in instance method',
+  `class Child extends Parent {
+    method() {
+      return super.parentMethod('arg');
+    }
+  }`,
+  `var Child = class Child extends Parent {};
+  Child.prototype.method = function () {
+    return Parent.prototype.parentMethod.call(this, 'arg');
+  };`);
+
+testTransform(
+  'convert super method call in static method',
+  `class Child extends Parent {
+    static staticMethod() {
+      return super.parentStaticMethod('arg');
+    }
+  }`,
+  `var Child = class Child extends Parent {};
+  Child.staticMethod = function () {
+    return Parent.parentStaticMethod.call('arg');
+  };`);
+
+testTransform(
+  'convert super property access in static method',
+  `class Child extends Parent {
+    static getValue() {
+      return super.staticProperty;
+    }
+  }`,
+  `var Child = class Child extends Parent {};
+  Child.getValue = function () {
+    return Parent.staticProperty;
+  };`);
+
+testTransform(
+  'convert super property access in instance method',
+  `class Child extends Parent {
+    getValue() {
+      return super.instanceProperty;
+    }
+  }`,
+  `var Child = class Child extends Parent {};
+  Child.prototype.getValue = function () {
+    return Parent.prototype.instanceProperty;
+  };`);
+
+testTransform(
+  'convert super method call with multiple arguments',
+  `class Child extends Parent {
+    method(a, b, c) {
+      return super.parentMethod(a, b, c);
+    }
+  }`,
+  `var Child = class Child extends Parent {};
+  Child.prototype.method = function (a, b, c) {
+    return Parent.prototype.parentMethod.call(this, a, b, c);
+  };`);
+
+testTransform(
+  'convert super method call with no arguments',
+  `class Child extends Parent {
+    method() {
+      return super.parentMethod();
+    }
+  }`,
+  `var Child = class Child extends Parent {};
+  Child.prototype.method = function () {
+    return Parent.prototype.parentMethod.call(this);
+  };`);
+
+testTransform(
+  'convert super method call in async method',
+  `class Child extends Parent {
+    async method() {
+      return await super.parentMethod();
+    }
+  }`,
+  `var Child = class Child extends Parent {};
+  Child.prototype.method = async function () {
+    return await Parent.prototype.parentMethod.call(this);
+  };`);
+
+testTransform(
+  'convert super method call in generator method',
+  `class Child extends Parent {
+    *method() {
+      yield super.parentMethod();
+    }
+  }`,
+  `var Child = class Child extends Parent {};
+  Child.prototype.method = function* () {
+    yield Parent.prototype.parentMethod.call(this);
+  };`);
+
+testTransform(
+  'convert super method call in getter',
+  `class Child extends Parent {
+    get value() {
+      return super.parentGetter();
+    }
+  }`,
+  `var Child = class Child extends Parent {};
+  Object.defineProperty(Child.prototype, "value", {
+    get: function () {
+      return Parent.prototype.parentGetter.call(this);
+    },
+    configurable: true
+  });`);
+
+testTransform(
+  'convert super method call in setter',
+  `class Child extends Parent {
+    set value(v) {
+      super.parentSetter(v);
+    }
+  }`,
+  `var Child = class Child extends Parent {};
+  Object.defineProperty(Child.prototype, "value", {
+    set: function (v) {
+      Parent.prototype.parentSetter.call(this, v);
+    },
+    configurable: true
+  });`);
+
+testTransform(
+  'convert super method call in private method',
+  `class Child extends Parent {
+    #privateMethod() {
+      return super.parentMethod();
+    }
+  }`,
+  `var Child = class Child extends Parent {};
+  Child.prototype._PRIVATE_privateMethod = function () {
+    return Parent.prototype.parentMethod.call(this);
+  };`);
+
+testTransform(
+  'convert super method call in private static method',
+  `class Child extends Parent {
+    static #privateStaticMethod() {
+      return super.parentStaticMethod();
+    }
+  }`,
+  `var Child = class Child extends Parent {};
+  Child._PRIVATE_privateStaticMethod = function () {
+    return Parent.parentStaticMethod.call();
+  };`);
+
 // ## object literals and methods
 
 testTransform(

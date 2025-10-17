@@ -283,8 +283,11 @@ const handleMemberExpression = (path) => {
     object.type = 'Identifier';
     object.name = superClassName;
   } else {
-    path.replaceWith(template.ast('undefined'));
-    // throw new Error('super found in the wrong place!');
+    // For instance methods, transform super.property to Parent.prototype.property
+    const propertyName = path.node.property.name;
+    const ast = template.ast(`${superClassName}.prototype.${propertyName}`);
+    copyLocation(path.node, ast);
+    path.replaceWith(ast);
   }
 };
 
