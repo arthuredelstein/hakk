@@ -11,6 +11,11 @@ const testTransform = (name, before, after) =>
       .toBe(cleanString(after));
   });
 
+const testParserError = (name, code, expectedErrorPattern) =>
+  test('parser error: ' + name, () => {
+    expect(() => prepareCode(code)).toThrow(expectedErrorPattern);
+  });
+
 // ## variable declarations
 
 testTransform('const to var', 'const x = 1;', 'var x = 1;');
@@ -2570,3 +2575,77 @@ testTransform(
   title,
   content
 }] = items;`);
+
+// ## Parser Error Handling
+
+testParserError(
+  'syntax error - invalid variable declaration',
+  'const = 1;',
+  /Unexpected token/
+);
+
+testParserError(
+  'syntax error - invalid function syntax',
+  'function { return 1; }',
+  /Unexpected token/
+);
+
+testParserError(
+  'syntax error - missing closing brace',
+  'const obj = { a: 1;',
+  /Unexpected token/
+);
+
+testParserError(
+  'syntax error - invalid class syntax',
+  'class { constructor() {} }',
+  /A class name is required/
+);
+
+testParserError(
+  'syntax error - invalid import syntax',
+  'import { from "module";',
+  /Unexpected token/
+);
+
+testParserError(
+  'syntax error - invalid export syntax',
+  'export { from "module";',
+  /Unexpected token/
+);
+
+testParserError(
+  'syntax error - invalid arrow function',
+  'const fn = => 1;',
+  /Unexpected token/
+);
+
+testParserError(
+  'syntax error - invalid template literal',
+  'const str = `hello;',
+  /Unterminated template/
+);
+
+testParserError(
+  'syntax error - invalid object method',
+  'const obj = { method() { return 1; };',
+  /Unexpected token/
+);
+
+testParserError(
+  'syntax error - invalid spread syntax',
+  'const arr = [...];',
+  /Unexpected token/
+);
+
+testParserError(
+  'syntax error - invalid async syntax',
+  'async function { return 1; }',
+  /Unexpected token/
+);
+
+testParserError(
+  'syntax error - invalid generator syntax',
+  'function* { yield 1; }',
+  /Unexpected token/
+);
