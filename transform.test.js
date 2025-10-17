@@ -31,6 +31,12 @@ testTransform('const f = async() => { var y = await Promise.resolve(4); }',
   `var f_hakk_ = async () => { var y = await Promise.resolve(4); };
   var f = (...args) => f_hakk_(...args);`);
 
+testTransform(
+  'const x = 1, y = 2, z = 3;',
+  `var x = 1;
+    var y = 2;
+    var z = 3;`);
+
 // ## class declarations and expressions
 
 testTransform('class A {}', 'var A = class A {};');
@@ -90,10 +96,26 @@ A.prototype.method1 = function (x) {
 };`);
 
 testTransform(
-  'const x = 1, y = 2, z = 3;',
-  `var x = 1;
-   var y = 2;
-   var z = 3;`);
+  `class A {
+    static {
+      console.log('static block');
+    }
+  }`,
+  `var A = class A {};
+  (function () { console.log('static block'); }).call(A);`);
+
+testTransform(
+  `class Counter {
+    static count = 0;
+    static {
+      this.count = 42;
+    }
+  }`,
+  `var Counter = class Counter {};
+  Counter.count = 0;
+  (function () {
+    this.count = 42;
+  }).call(Counter);`);
 
 // ## `import()` calls
 

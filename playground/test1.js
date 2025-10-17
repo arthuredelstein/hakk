@@ -152,3 +152,11 @@ const join = (a, b) => {
 //test2.bar();
 
 exports.join = join;
+
+class Counter {
+  static count = 0;
+  static {
+    this.count+=2;
+  }
+  static count = 3;
+}
