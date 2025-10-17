@@ -307,40 +307,32 @@ const nodesForClass = ({ className, classBodyNodes }) => {
     if (classBodyNode.type === 'ClassMethod') {
       if (classBodyNode.kind === 'constructor') {
         retainedNodes.push(classBodyNode);
-      } else if (classBodyNode.kind === 'method') {
-        const keyExpression = classBodyNode.computed ? generate(classBodyNode.key).code : classBodyNode.key.name;
-        const target = classBodyNode.static ? className : `${className}.prototype`;
-        const propertyAccess = classBodyNode.computed ? `[${keyExpression}]` : `.${keyExpression}`;
-        templateAST = template.ast(
-          `${target}${propertyAccess} = ${classBodyNode.async ? 'async ' : ''}function${classBodyNode.generator ? '*' : ''} () {}`
-        );
-        copyLocation(classBodyNode, templateAST);
-        const fun = templateAST.expression.right;
-        fun.body = classBodyNode.body;
-        fun.params = classBodyNode.params;
-        templateAST._removeCode = `if (${className}) { delete ${target}${classBodyNode.computed ? '[' + keyExpression + ']' : '.' + keyExpression} };`;
-      } else if (classBodyNode.kind === 'get' ||
+      } else if (classBodyNode.kind === 'method' ||
+        classBodyNode.kind === 'get' ||
         classBodyNode.kind === 'set') {
         const keyExpression = classBodyNode.computed ? generate(classBodyNode.key).code : classBodyNode.key.name;
         const target = classBodyNode.static ? className : `${className}.prototype`;
-        const propertyName = classBodyNode.computed ? keyExpression : `"${keyExpression}"`;
-        templateAST = template.ast(
-          `Object.defineProperty(${target}, ${propertyName}, {
-             ${classBodyNode.kind}: function () { },
-             configurable: true
-           });`
-        );
-        copyLocation(classBodyNode, templateAST);
-        const fun = templateAST.expression.arguments[2].properties[0].value;
+        let fun;
+        if (classBodyNode.kind === 'method') {
+          const propertyAccess = classBodyNode.computed ? `[${keyExpression}]` : `.${keyExpression}`;
+          templateAST = template.ast(
+            `${target}${propertyAccess} = ${classBodyNode.async ? 'async ' : ''}function${classBodyNode.generator ? '*' : ''} () {}`
+          );
+          fun = templateAST.expression.right;
+        } else {
+          const propertyName = classBodyNode.computed ? keyExpression : `"${keyExpression}"`;
+          templateAST = template.ast(
+            `Object.defineProperty(${target}, ${propertyName}, {
+               ${classBodyNode.kind}: function () { },
+               configurable: true
+             });`
+          );
+          fun = templateAST.expression.arguments[2].properties[0].value;
+        }
         fun.body = classBodyNode.body;
         fun.params = classBodyNode.params;
-        const getter = classBodyNode.kind === 'get';
-        templateAST._removeCode = `if (${className}) Object.defineProperty(${target}, ${classBodyNode.computed ? keyExpression : '"' + keyExpression + '"'}, {
-          ${classBodyNode.kind}: function (${getter ? '' : 'value'}) {
-            return this._PROPERTY_${keyExpression} ${getter ? '' : '= value'};
-          },
-          configurable: true
-        });`;
+        copyLocation(classBodyNode, templateAST);
+        templateAST._removeCode = `if (${className}) { delete ${target}${classBodyNode.computed ? '[' + keyExpression + ']' : '.' + keyExpression} }`;
       } else {
         throw new Error(`Unexpected ClassMethod kind ${classBodyNode.kind}`);
       }
@@ -567,7 +559,7 @@ const handleObjectExpression = (path) => {
         } else {
           // Handle computed properties
           if (property.computed) {
-            ast = template.ast(`${name}[${generate(key).code}] = undefined;`);
+            ast = template.ast(`${name}[${key.name}] = undefined;`);
           } else {
             ast = template.ast(`${name}.${key.name} = undefined;`);
           }
