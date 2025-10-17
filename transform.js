@@ -318,8 +318,9 @@ const nodesForClass = ({ className, classBodyNodes }) => {
       } else if (classBodyNode.kind === 'get' ||
         classBodyNode.kind === 'set') {
         const keyName = classBodyNode.key.name;
+        const target = classBodyNode.static ? className : `${className}.prototype`;
         templateAST = template.ast(
-          `Object.defineProperty(${className}.prototype, "${keyName}", {
+          `Object.defineProperty(${target}, "${keyName}", {
              ${classBodyNode.kind}: function () { },
              configurable: true
            });`
@@ -329,7 +330,7 @@ const nodesForClass = ({ className, classBodyNodes }) => {
         fun.body = classBodyNode.body;
         fun.params = classBodyNode.params;
         const getter = classBodyNode.kind === 'get';
-        templateAST._removeCode = `if (${className}) Object.defineProperty(${className}.prototype, "${keyName}", {
+        templateAST._removeCode = `if (${className}) Object.defineProperty(${target}, "${keyName}", {
           ${classBodyNode.kind}: function (${getter ? '' : 'value'}) {
             return this._PROPERTY_${keyName} ${getter ? '' : '= value'};
           },

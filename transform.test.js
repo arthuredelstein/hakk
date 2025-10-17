@@ -143,6 +143,79 @@ testTransform(
     this.c = 6;
   }).call(Config);
   Config.d = 7;`);
+
+testTransform(
+  'convert static method declaration to class expression',
+  `class Utils {
+    static helper() {
+      return 'help';
+    }
+  }`,
+  `var Utils = class Utils {};
+  Utils.helper = function () {
+    return 'help';
+  };`);
+
+testTransform(
+  'convert static field declaration to class expression',
+  `class Config {
+    static version = '1.0.0';
+  }`,
+  `var Config = class Config {};
+  Config.version = '1.0.0';`);
+
+testTransform(
+  'convert static getter declaration to class expression',
+  `class Data {
+    static get info() {
+      return { name: 'test' };
+    }
+  }`,
+  `var Data = class Data {};
+  Object.defineProperty(Data, "info", {
+    get: function () {
+      return { name: 'test' };
+    },
+    configurable: true
+  });`);
+
+testTransform(
+  'convert static setter declaration to class expression',
+  `class Data {
+    static set value(v) {
+      this._value = v;
+    }
+  }`,
+  `var Data = class Data {};
+  Object.defineProperty(Data, "value", {
+    set: function (v) {
+      this._value = v;
+    },
+    configurable: true
+  });`);
+
+testTransform(
+  'convert class with mixed static and instance members',
+  `class Example {
+    static staticField = 'static';
+    instanceField = 'instance';
+    static staticMethod() {
+      return 'static method';
+    }
+    instanceMethod() {
+      return 'instance method';
+    }
+  }`,
+  `var Example = class Example {};
+  Example.staticField = 'static';
+  Example.prototype.instanceField = 'instance';
+  Example.staticMethod = function () {
+    return 'static method';
+  };
+  Example.prototype.instanceMethod = function () {
+    return 'instance method';
+  };`);
+
 // ## `import()` calls
 
 testTransform('convert import statement to await import',
