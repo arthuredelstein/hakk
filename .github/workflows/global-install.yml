@@ -30,11 +30,15 @@ jobs:
 
       # Pack with lifecycle scripts (like publish). prepare must not assume
       # devDependencies (e.g. husky) when packing without npm ci.
+      # Use --pack-destination so we do not parse stdout (npm prints notices
+      # and script lines like "> pkg@version prepare", which breaks GITHUB_OUTPUT).
       - name: Create tarball (npm pack)
         id: pack
         run: |
           set -euo pipefail
-          TGZ="$(npm pack)"
+          mkdir -p pack-out
+          npm pack --pack-destination pack-out
+          TGZ="$(ls -1 pack-out/*.tgz | head -n 1)"
           echo "tgz=${TGZ}" >> "$GITHUB_OUTPUT"
           echo "Packed: ${TGZ}"
 
