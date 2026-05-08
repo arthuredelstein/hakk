@@ -1,0 +1,49 @@
+# Smoke-test global install the same way users get the package from npm:
+# pack from the checked-out tree (matches `files` + publish layout), then
+# `npm install -g` the tarball on a clean Linux runner.
+
+name: Global install (from pack)
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+jobs:
+  global-install:
+    name: npm install -g from git (pack)
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 22.x, 26.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # Skip lifecycle scripts while packing: we only need the tarball contents
+      # (same as publish via `files`). Global install still runs install scripts
+      # for the package and its dependencies.
+      - name: Create tarball (npm pack)
+        id: pack
+        run: |
+          set -euo pipefail
+          TGZ="$(npm pack --ignore-scripts)"
+          echo "tgz=${TGZ}" >> "$GITHUB_OUTPUT"
+          echo "Packed: ${TGZ}"
+
+      - name: Global install from tarball
+        run: npm install -g "${{ steps.pack.outputs.tgz }}"
+
+      - name: Verify CLI is on PATH
+        run: command -v hakk
+
+      - name: Verify CLI runs
+        run: hakk --version
