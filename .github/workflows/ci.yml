@@ -2,79 +2,100 @@ name: CI
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [main, master, develop]
   pull_request:
-    branches: [ main, master, develop ]
+    branches: [main, master, develop]
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting with semistandard
+        run: npx semistandard
+
   test:
     name: Test on Node.js ${{ matrix.node-version }}
+    needs: lint
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         node-version: [18.x, 20.x, 22.x, 24.x, 26.x]
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Run linting with semistandard
-      run: npx semistandard
-      continue-on-error: true
-      
-    - name: Run tests
-      run: npm test
-      
-    - name: Upload test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: test-results-node-${{ matrix.node-version }}
-        path: |
-          coverage/
-          test-results.xml
-        retention-days: 7
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Test coverage (optional)
+        run: npm test -- --coverage
+        continue-on-error: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-node-${{ matrix.node-version }}
+          path: |
+            coverage/
+            test-results.xml
+          retention-days: 7
 
   build:
     name: Build check
     runs-on: ubuntu-latest
     needs: test
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Build project (if build script exists)
-      run: npm run build
-      continue-on-error: true
-      
-    - name: Check for build artifacts
-      run: |
-        if [ -d "dist" ]; then
-          echo "Build artifacts found in dist/"
-          ls -la dist/
-        elif [ -d "lib" ]; then
-          echo "Build artifacts found in lib/"
-          ls -la lib/
-        else
-          echo "No build artifacts found - this may be expected for this project"
-        fi
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project (if build script exists)
+        run: npm run build
+        continue-on-error: true
+
+      - name: Check for build artifacts
+        run: |
+          if [ -d "dist" ]; then
+            echo "Build artifacts found in dist/"
+            ls -la dist/
+          elif [ -d "lib" ]; then
+            echo "Build artifacts found in lib/"
+            ls -la lib/
+          else
+            echo "No build artifacts found - this may be expected for this project"
+          fi
