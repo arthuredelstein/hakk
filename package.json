@@ -8,7 +8,7 @@
     "lint": "npx semistandard",
     "test:ci": "npm run lint && npm test",
     "test:local": "./.github/scripts/test-local.sh",
-    "prepare": "husky install",
+    "prepare": "husky",
     "pre-push": "npm run test:ci",
     "prepublishOnly": "npm run test:ci",
     "setup-hooks": "./scripts/setup-hooks.sh",
@@ -19,7 +19,6 @@
   "license": "MIT",
   "dependencies": {
     "@babel/core": "^7.28.3",
-    "husky": "^9.0.11",
     "minimist": "^1.2.7",
     "queueable": "^5.3.1",
     "ws": "^8.13.0"
@@ -28,12 +27,24 @@
     "hakk": "bin.js"
   },
   "devDependencies": {
-    "@types/jest": "^29.2.5"
+    "@types/jest": "^30.0.0",
+    "husky": "^9.0.11"
   },
   "semistandard": {
     "ignore": [
       "/playground/"
-    ]
+    ],
+    "rules": {
+      "max-len": [
+        "error",
+        {
+          "code": 80,
+          "ignoreUrls": true,
+          "ignoreStrings": true,
+          "ignoreTemplateLiterals": true
+        }
+      ]
+    }
   },
   "repository": {
     "type": "git",
