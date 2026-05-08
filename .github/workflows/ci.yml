@@ -99,3 +99,54 @@ jobs:
           else
             echo "No build artifacts found - this may be expected for this project"
           fi
+
+  # Smoke-test global install like npm publish: pack from tree, then npm install -g.
+  global-install:
+    name: Global install (${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 22.x, 26.x]
+
+    steps:
+      # Shallow clones break some git commands npm may run during pack (exit 128).
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Allow git access to workspace (npm pack may invoke git)
+        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # Pack with lifecycle scripts (like publish). prepare must not assume
+      # devDependencies (e.g. husky) when packing without npm ci.
+      - name: Create tarball (npm pack)
+        id: pack
+        run: |
+          set -euo pipefail
+          mkdir -p pack-out
+          npm pack --pack-destination pack-out
+          shopt -s nullglob
+          tgz_files=(pack-out/*.tgz)
+          if [ "${#tgz_files[@]}" -eq 0 ]; then
+            echo "No .tgz produced in pack-out/"
+            exit 1
+          fi
+          TGZ="$(realpath "${tgz_files[0]}")"
+          echo "tgz=${TGZ}" >> "$GITHUB_OUTPUT"
+          echo "Packed: ${TGZ}"
+
+      - name: Global install from tarball
+        run: npm install -g "${{ steps.pack.outputs.tgz }}"
+
+      - name: Verify CLI is on PATH
+        run: command -v hakk
+
+      - name: Verify CLI runs
+        run: hakk --version
