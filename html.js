@@ -4,7 +4,6 @@ const { promisify } = require('node:util');
 const execAsync = promisify(require('node:child_process').exec);
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { Channel } = require('queueable');
 
 const HTTP_PORT = 8000;
 const WEBSOCKET_PORT = 8001;
@@ -80,19 +79,20 @@ const webEvaluator = () => {
     });
   };
 
-  const incomingMessages = new Channel();
+  const pendingResults = new Map();
 
   const handleData = (data) => {
-    incomingMessages.push(JSON.parse(data));
-  };
-
-  const receiveMessage = async (id) => {
-    let data;
-    do {
-      const message = await incomingMessages.next();
-      data = message.value;
-    } while (data.id !== id);
-    return data;
+    const message = JSON.parse(data);
+    const pending = pendingResults.get(message.id);
+    if (!pending) {
+      return;
+    }
+    pendingResults.delete(message.id);
+    if (message.error) {
+      pending.reject(message.error);
+    } else {
+      pending.resolve(message.result);
+    }
   };
 
   wss.on('connection', (ws) => {
@@ -105,15 +105,11 @@ const webEvaluator = () => {
   const evaluate = async ({ code, sourceURL }) => {
     ++counter;
     const id = counter.toString();
-    const receiveMessagePromise = receiveMessage(id);
+    const receiveMessagePromise = new Promise((resolve, reject) => {
+      pendingResults.set(id, { resolve, reject });
+    });
     broadcastMessage({ command: 'eval', code, sourceURL, id });
-    const message = await receiveMessagePromise;
-    const { result, error } = message;
-    if (error) {
-      throw error;
-    } else {
-      return result;
-    }
+    return receiveMessagePromise;
   };
 
   return evaluate;
