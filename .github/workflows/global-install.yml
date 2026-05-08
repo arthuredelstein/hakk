@@ -28,14 +28,13 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      # Skip lifecycle scripts while packing: we only need the tarball contents
-      # (same as publish via `files`). Global install still runs install scripts
-      # for the package and its dependencies.
+      # Pack with lifecycle scripts (like publish). prepare must not assume
+      # devDependencies (e.g. husky) when packing without npm ci.
       - name: Create tarball (npm pack)
         id: pack
         run: |
           set -euo pipefail
-          TGZ="$(npm pack --ignore-scripts)"
+          TGZ="$(npm pack)"
           echo "tgz=${TGZ}" >> "$GITHUB_OUTPUT"
           echo "Packed: ${TGZ}"
 

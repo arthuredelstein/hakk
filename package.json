@@ -8,7 +8,7 @@
     "lint": "npx semistandard",
     "test:ci": "npm run lint && npm test",
     "test:local": "./.github/scripts/test-local.sh",
-    "prepare": "husky",
+    "prepare": "node scripts/prepare-husky.cjs",
     "pre-push": "npm run test:ci",
     "prepublishOnly": "npm run test:ci",
     "setup-hooks": "./scripts/setup-hooks.sh",
@@ -68,6 +68,7 @@
     "package.json",
     "README.md",
     "repl.js",
+    "scripts/prepare-husky.cjs",
     "transform.js",
     "utils.js"
   ]
