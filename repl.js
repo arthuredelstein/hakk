@@ -90,6 +90,9 @@ const historyDir = () => {
 const monitorSpecialKeys = (replServer, modulePathManager) => {
   const originalTtyWrite = replServer._ttyWrite;
   replServer._ttyWrite = async (d, key) => {
+    if (key === undefined) {
+      return originalTtyWrite(d, key);
+    }
     const shiftOnly = key.meta === false && key.shift === true && key.ctrl === false;
     if (shiftOnly && key.name === 'right') {
       modulePathManager.forward();
